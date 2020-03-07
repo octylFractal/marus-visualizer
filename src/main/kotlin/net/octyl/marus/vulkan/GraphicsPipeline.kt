@@ -1,0 +1,190 @@
+/*
+ * Copyright (c) Octavia Togami <https://octyl.net>
+ * Copyright (c) contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package net.octyl.marus.vulkan
+
+import net.octyl.marus.util.closer
+import net.octyl.marus.util.pushStack
+import net.octyl.marus.util.stackPointer
+import net.octyl.marus.vkDevice
+import net.octyl.marus.vkPipeline
+import net.octyl.marus.vkPipelineLayout
+import net.octyl.marus.vkRenderPass
+import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+import org.lwjgl.vulkan.VK10.*
+import org.lwjgl.vulkan.VkAttachmentDescription
+import org.lwjgl.vulkan.VkAttachmentReference
+import org.lwjgl.vulkan.VkGraphicsPipelineCreateInfo
+import org.lwjgl.vulkan.VkOffset2D
+import org.lwjgl.vulkan.VkPipelineColorBlendAttachmentState
+import org.lwjgl.vulkan.VkPipelineColorBlendStateCreateInfo
+import org.lwjgl.vulkan.VkPipelineInputAssemblyStateCreateInfo
+import org.lwjgl.vulkan.VkPipelineLayoutCreateInfo
+import org.lwjgl.vulkan.VkPipelineMultisampleStateCreateInfo
+import org.lwjgl.vulkan.VkPipelineRasterizationStateCreateInfo
+import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo
+import org.lwjgl.vulkan.VkPipelineVertexInputStateCreateInfo
+import org.lwjgl.vulkan.VkPipelineViewportStateCreateInfo
+import org.lwjgl.vulkan.VkRect2D
+import org.lwjgl.vulkan.VkRenderPassCreateInfo
+import org.lwjgl.vulkan.VkSubpassDependency
+import org.lwjgl.vulkan.VkSubpassDescription
+import org.lwjgl.vulkan.VkViewport
+
+
+fun createRenderPass() {
+    closer {
+        val stack = pushStack()
+        val colorAttachment = VkAttachmentDescription.callocStack(stack)
+            .format(vkSwapChainFormat)
+            .samples(VK_SAMPLE_COUNT_1_BIT)
+            .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
+            .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
+            .finalLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+        val colorAttachmentRef = VkAttachmentReference.callocStack(stack)
+            .attachment(0)
+            .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+        val subpass = VkSubpassDescription.callocStack(stack)
+            .colorAttachmentCount(1)
+            .pColorAttachments(colorAttachmentRef.stackPointer(VkAttachmentReference::mallocStack, stack))
+        val dependency = VkSubpassDependency.callocStack(stack)
+            .srcSubpass(VK_SUBPASS_EXTERNAL)
+            .dstSubpass(0)
+            .srcStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+            .srcAccessMask(0)
+            .dstStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+            .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+        val renderPassInfo = VkRenderPassCreateInfo.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO)
+            .pAttachments(colorAttachment.stackPointer(VkAttachmentDescription::mallocStack, stack))
+            .pSubpasses(subpass.stackPointer(VkSubpassDescription::mallocStack, stack))
+            .pDependencies(dependency.stackPointer(VkSubpassDependency::mallocStack, stack))
+
+        val renderPass = stack.mallocLong(1)
+        checkedCreate("render pass") {
+            vkCreateRenderPass(vkDevice, renderPassInfo, null, renderPass)
+        }
+        vkRenderPass = renderPass[0]
+    }
+}
+
+fun createGraphicsPipeline() {
+    closer {
+        val vertShader = Shader.compileAndLoadShader("vertex.vert", ShaderStage.VERTEX)
+        val fragShader = Shader.compileAndLoadShader("fragment.frag", ShaderStage.FRAGMENT)
+        val vertShaderModule = vertShader
+            .createVkShaderModule()
+            .register { vkDestroyShaderModule(vkDevice, it, null) }
+        val fragShaderModule = fragShader
+            .createVkShaderModule()
+            .register { vkDestroyShaderModule(vkDevice, it, null) }
+
+        val stack = pushStack()
+        val stageInfos = VkPipelineShaderStageCreateInfo.mallocStack(2, stack)
+            .put(vertShader.setupStageInfo(vertShaderModule))
+            .put(fragShader.setupStageInfo(fragShaderModule))
+            .flip()
+        val vertexInputInfo = VkPipelineVertexInputStateCreateInfo.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)
+        val inputAssembly = VkPipelineInputAssemblyStateCreateInfo.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
+            .topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
+            .primitiveRestartEnable(false)
+        val viewport = VkViewport.callocStack(stack)
+            .x(0.0f)
+            .y(0.0f)
+            .width(vkSwapChainExtent.width().toFloat())
+            .height(vkSwapChainExtent.height().toFloat())
+            .minDepth(0.0f)
+            .maxDepth(1.0f)
+        val scissor = VkRect2D.callocStack(stack)
+            .offset(VkOffset2D.callocStack(stack).set(0, 0))
+            .extent(vkSwapChainExtent)
+        val viewportState = VkPipelineViewportStateCreateInfo.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO)
+            .pViewports(viewport.stackPointer(VkViewport::mallocStack, stack))
+            .pScissors(scissor.stackPointer(VkRect2D::mallocStack, stack))
+        val rasterizer = VkPipelineRasterizationStateCreateInfo.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO)
+            .depthClampEnable(false)
+            .rasterizerDiscardEnable(false)
+            .polygonMode(VK_POLYGON_MODE_FILL)
+            .lineWidth(1.0f)
+            .cullMode(VK_CULL_MODE_BACK_BIT)
+            .frontFace(VK_FRONT_FACE_CLOCKWISE)
+            .depthBiasEnable(false)
+        val multiSampling = VkPipelineMultisampleStateCreateInfo.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO)
+            .sampleShadingEnable(false)
+            .rasterizationSamples(VK_SAMPLE_COUNT_1_BIT)
+        val colorBlendAttachment = VkPipelineColorBlendAttachmentState.callocStack(stack)
+            .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or
+                VK_COLOR_COMPONENT_G_BIT or
+                VK_COLOR_COMPONENT_B_BIT or
+                VK_COLOR_COMPONENT_A_BIT)
+            .srcColorBlendFactor(VK_BLEND_FACTOR_ONE)
+            .dstColorBlendFactor(VK_BLEND_FACTOR_ZERO)
+            .colorBlendOp(VK_BLEND_OP_ADD)
+            .srcAlphaBlendFactor(VK_BLEND_FACTOR_ONE)
+            .dstAlphaBlendFactor(VK_BLEND_FACTOR_ZERO)
+            .alphaBlendOp(VK_BLEND_OP_ADD)
+        val colorBlending = VkPipelineColorBlendStateCreateInfo.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
+            .logicOpEnable(false)
+            .pAttachments(colorBlendAttachment.stackPointer(VkPipelineColorBlendAttachmentState::mallocStack, stack))
+
+        createPipelineLayout()
+
+        val pipelineInfo = VkGraphicsPipelineCreateInfo.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO)
+            .pStages(stageInfos)
+            .pVertexInputState(vertexInputInfo)
+            .pInputAssemblyState(inputAssembly)
+            .pViewportState(viewportState)
+            .pRasterizationState(rasterizer)
+            .pMultisampleState(multiSampling)
+            .pColorBlendState(colorBlending)
+            .layout(vkPipelineLayout)
+            .renderPass(vkRenderPass)
+            .subpass(0)
+            .basePipelineHandle(VK_NULL_HANDLE)
+            .basePipelineIndex(-1)
+
+        val pipeline = stack.mallocLong(1)
+        checkedCreate("pipeline") {
+            vkCreateGraphicsPipelines(vkDevice, VK_NULL_HANDLE,
+                pipelineInfo.stackPointer(VkGraphicsPipelineCreateInfo::mallocStack),
+                null, pipeline)
+        }
+        vkPipeline = pipeline[0]
+    }
+}
+
+private fun createPipelineLayout() {
+    closer {
+        val stack = pushStack()
+        val pipelineLayoutInfo = VkPipelineLayoutCreateInfo.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
+        val pipelineLayout = stack.mallocLong(1)
+        checkedCreate("pipeline layout") {
+            vkCreatePipelineLayout(vkDevice, pipelineLayoutInfo, null, pipelineLayout)
+        }
+        vkPipelineLayout = pipelineLayout.get()
+    }
+}
