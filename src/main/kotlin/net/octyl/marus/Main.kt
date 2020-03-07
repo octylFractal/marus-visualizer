@@ -19,25 +19,36 @@
 package net.octyl.marus
 
 import mu.KotlinLogging
+import net.octyl.marus.util.LineOutputStream
 import net.octyl.marus.util.forEach
+import net.octyl.marus.vulkan.Vertex
 import net.octyl.marus.vulkan.cleanupSwapChain
 import net.octyl.marus.vulkan.drawFrame
 import net.octyl.marus.vulkan.initVulkan
+import org.joml.Vector2f
+import org.joml.Vector3f
+import org.lwjgl.BufferUtils
 import org.lwjgl.PointerBuffer
 import org.lwjgl.Version
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWErrorCallback
+import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.vulkan.EXTDebugUtils.vkDestroyDebugUtilsMessengerEXT
 import org.lwjgl.vulkan.KHRSurface.vkDestroySurfaceKHR
+import org.lwjgl.vulkan.VK10.vkDestroyBuffer
 import org.lwjgl.vulkan.VK10.vkDestroyCommandPool
 import org.lwjgl.vulkan.VK10.vkDestroyDevice
 import org.lwjgl.vulkan.VK10.vkDestroyFence
 import org.lwjgl.vulkan.VK10.vkDestroyInstance
 import org.lwjgl.vulkan.VK10.vkDestroySemaphore
 import org.lwjgl.vulkan.VK10.vkDeviceWaitIdle
+import org.lwjgl.vulkan.VK10.vkFreeMemory
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
+import org.slf4j.LoggerFactory
+import java.io.PrintStream
+import java.nio.ByteBuffer
 import java.nio.LongBuffer
 
 private val LOGGER = KotlinLogging.logger { }
@@ -62,10 +73,33 @@ lateinit var vkImagesInFlight: LongBuffer
 val DEBUG = System.getProperty("marus.debug")?.toBoolean() == true
 const val MAX_FRAMES_IN_FLIGHT = 2
 
+val VERTICES: ByteBuffer = BufferUtils.createByteBuffer(Vertex.SIZEOF * 4).also {
+    for ((index, vertex) in listOf(
+        Vertex(Vector2f(-0.5f, -0.5f), Vector3f(1.0f, 0.0f, .0f)),
+        Vertex(Vector2f(0.5f, -0.5f), Vector3f(0.0f, 1.0f, 0.0f)),
+        Vertex(Vector2f(0.5f, 0.5f), Vector3f(0.0f, 0.0f, 1.0f)),
+        Vertex(Vector2f(-0.5f, 0.5f), Vector3f(1.0f, 0.0f, 1.0f))
+    ).withIndex()) {
+        vertex.get(index * Vertex.SIZEOF, it)
+    }
+}
+val INDICIES: ByteBuffer = BufferUtils.createByteBuffer(Integer.BYTES * 6).also {
+    it.asIntBuffer().put(intArrayOf(0, 1, 2, 2, 3, 0))
+}
+var vkVertexBuffer = NULL
+var vkVertexBufferMemory = NULL
+var vkIndexBuffer = NULL
+var vkIndexBufferMemory = NULL
+
 var swapChainOutdated = false
 
 fun main() {
-    LOGGER.info { "LWJGL: ${Version.getVersion()}" }
+    Configuration.DEBUG_STREAM.set(PrintStream(LineOutputStream(LoggerFactory.getLogger("LWJGL")::info)))
+    Configuration.DEBUG.set(DEBUG)
+    if (!DEBUG) {
+        // if in DEBUG, LWJGL dumps this itself!
+        LOGGER.info { "LWJGL: ${Version.getVersion()}" }
+    }
     initWindow()
     initVulkan()
     mainLoop()
@@ -96,6 +130,10 @@ private fun mainLoop() {
 
 private fun cleanup() {
     if (::vkDevice.isInitialized) {
+        vkDestroyBuffer(vkDevice, vkVertexBuffer, null)
+        vkFreeMemory(vkDevice, vkVertexBufferMemory, null)
+        vkDestroyBuffer(vkDevice, vkIndexBuffer, null)
+        vkFreeMemory(vkDevice, vkIndexBufferMemory, null)
         if (::vkImageAvailableSemaphores.isInitialized) {
             vkImageAvailableSemaphores.forEach {
                 vkDestroySemaphore(vkDevice, get(it), null)

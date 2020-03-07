@@ -83,6 +83,8 @@ fun initVulkan() {
     createGraphicsPipeline()
     createFramebuffer()
     createCommandPool()
+    createVertexBuffer()
+    createIndexBuffer()
     createCommandBuffers()
     createSyncObjects()
 }
@@ -190,7 +192,7 @@ private fun createLogicalDevice() {
         val stack = pushStack()
         val queuesList = queues.allQueues
         val uniqueQueues = queuesList.toSet()
-        val queueCreateInfos = structs({ VkDeviceQueueCreateInfo.mallocStack(it, stack) },
+        val queueCreateInfos = stack.structs(VkDeviceQueueCreateInfo::mallocStack,
             *uniqueQueues.map { it.createInfo(stack) }.toTypedArray()
         )
         val deviceFeatures = VkPhysicalDeviceFeatures.callocStack(stack)

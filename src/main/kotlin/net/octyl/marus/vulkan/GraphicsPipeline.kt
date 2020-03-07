@@ -20,7 +20,7 @@ package net.octyl.marus.vulkan
 
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.pushStack
-import net.octyl.marus.util.stackPointer
+import net.octyl.marus.util.structs
 import net.octyl.marus.vkDevice
 import net.octyl.marus.vkPipeline
 import net.octyl.marus.vkPipelineLayout
@@ -44,6 +44,8 @@ import org.lwjgl.vulkan.VkRect2D
 import org.lwjgl.vulkan.VkRenderPassCreateInfo
 import org.lwjgl.vulkan.VkSubpassDependency
 import org.lwjgl.vulkan.VkSubpassDescription
+import org.lwjgl.vulkan.VkVertexInputAttributeDescription
+import org.lwjgl.vulkan.VkVertexInputBindingDescription
 import org.lwjgl.vulkan.VkViewport
 
 
@@ -62,7 +64,7 @@ fun createRenderPass() {
             .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
         val subpass = VkSubpassDescription.callocStack(stack)
             .colorAttachmentCount(1)
-            .pColorAttachments(colorAttachmentRef.stackPointer(VkAttachmentReference::mallocStack, stack))
+            .pColorAttachments(stack.structs(VkAttachmentReference::mallocStack, colorAttachmentRef))
         val dependency = VkSubpassDependency.callocStack(stack)
             .srcSubpass(VK_SUBPASS_EXTERNAL)
             .dstSubpass(0)
@@ -72,9 +74,9 @@ fun createRenderPass() {
             .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
         val renderPassInfo = VkRenderPassCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO)
-            .pAttachments(colorAttachment.stackPointer(VkAttachmentDescription::mallocStack, stack))
-            .pSubpasses(subpass.stackPointer(VkSubpassDescription::mallocStack, stack))
-            .pDependencies(dependency.stackPointer(VkSubpassDependency::mallocStack, stack))
+            .pAttachments(stack.structs(VkAttachmentDescription::mallocStack, colorAttachment))
+            .pSubpasses(stack.structs(VkSubpassDescription::mallocStack, subpass))
+            .pDependencies(stack.structs(VkSubpassDependency::mallocStack, dependency))
 
         val renderPass = stack.mallocLong(1)
         checkedCreate("render pass") {
@@ -102,6 +104,10 @@ fun createGraphicsPipeline() {
             .flip()
         val vertexInputInfo = VkPipelineVertexInputStateCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)
+            .pVertexBindingDescriptions(stack.structs(VkVertexInputBindingDescription::mallocStack,
+                Vertex.bindingDescription
+            ))
+            .pVertexAttributeDescriptions(Vertex.attributeDescription)
         val inputAssembly = VkPipelineInputAssemblyStateCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
             .topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
@@ -118,8 +124,8 @@ fun createGraphicsPipeline() {
             .extent(vkSwapChainExtent)
         val viewportState = VkPipelineViewportStateCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO)
-            .pViewports(viewport.stackPointer(VkViewport::mallocStack, stack))
-            .pScissors(scissor.stackPointer(VkRect2D::mallocStack, stack))
+            .pViewports(stack.structs(VkViewport::mallocStack, viewport))
+            .pScissors(stack.structs(VkRect2D::mallocStack, scissor))
         val rasterizer = VkPipelineRasterizationStateCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO)
             .depthClampEnable(false)
@@ -147,7 +153,7 @@ fun createGraphicsPipeline() {
         val colorBlending = VkPipelineColorBlendStateCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
             .logicOpEnable(false)
-            .pAttachments(colorBlendAttachment.stackPointer(VkPipelineColorBlendAttachmentState::mallocStack, stack))
+            .pAttachments(stack.structs(VkPipelineColorBlendAttachmentState::mallocStack, colorBlendAttachment))
 
         createPipelineLayout()
 
@@ -169,7 +175,7 @@ fun createGraphicsPipeline() {
         val pipeline = stack.mallocLong(1)
         checkedCreate("pipeline") {
             vkCreateGraphicsPipelines(vkDevice, VK_NULL_HANDLE,
-                pipelineInfo.stackPointer(VkGraphicsPipelineCreateInfo::mallocStack),
+                stack.structs(VkGraphicsPipelineCreateInfo::mallocStack, pipelineInfo),
                 null, pipeline)
         }
         vkPipeline = pipeline[0]

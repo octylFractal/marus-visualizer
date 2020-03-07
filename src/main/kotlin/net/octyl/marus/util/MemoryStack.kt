@@ -35,9 +35,9 @@ inline fun <C> listAllElements(
     return buffer
 }
 
-inline fun <S, B : StructBuffer<S, B>> structs(structBuffer: (capacity: Int) -> B,
-                                               vararg structs: S): B {
-    val buffer = structBuffer(structs.size)
+inline fun <S, B : StructBuffer<S, B>> MemoryStack.structs(structBuffer: (capacity: Int, stack: MemoryStack) -> B,
+                                                           vararg structs: S): B {
+    val buffer = structBuffer(structs.size, this)
     for ((index, struct) in structs.withIndex()) {
         buffer.put(index, struct)
     }
@@ -49,8 +49,3 @@ inline fun <S, B : StructBuffer<S, B>> structs(structBuffer: (capacity: Int) -> 
  * with the [CloserScope].
  */
 fun CloserScope.pushStack(): MemoryStack = MemoryStack.stackPush().register()
-
-inline fun <S : Struct, B : StructBuffer<S, B>> S.stackPointer(bufferAlloc: (count: Int, stack: MemoryStack) -> B,
-                                                               stack: MemoryStack = MemoryStack.stackGet()): B {
-    return bufferAlloc(1, stack).put(0, this)
-}

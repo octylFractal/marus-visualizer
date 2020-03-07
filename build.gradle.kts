@@ -20,12 +20,14 @@ inciseBlue {
         // on OSX this requires natives, don't care right now though
         addDependency("vulkan", natives = false)
         addDependency("shaderc")
+        addDependency("jemalloc")
     }
 }
 
 dependencies {
     "implementation"(kotlin("stdlib-jdk8"))
     "implementation"("org.slf4j:slf4j-api:1.7.30")
+    "implementation"("org.joml:joml:1.9.22")
     commonLib("ch.qos.logback", "logback", "1.2.3") {
         "implementation"(lib("classic"))
         "implementation"(lib("core"))

@@ -18,16 +18,19 @@
 
 package net.octyl.marus.vulkan
 
+import net.octyl.marus.INDICIES
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.forEach
 import net.octyl.marus.util.pushStack
-import net.octyl.marus.util.stackPointer
+import net.octyl.marus.util.structs
 import net.octyl.marus.vkCommandBuffers
 import net.octyl.marus.vkCommandPool
 import net.octyl.marus.vkDevice
+import net.octyl.marus.vkIndexBuffer
 import net.octyl.marus.vkPipeline
 import net.octyl.marus.vkRenderPass
 import net.octyl.marus.vkSwapChainFramebuffers
+import net.octyl.marus.vkVertexBuffer
 import org.lwjgl.BufferUtils
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkClearValue
@@ -62,7 +65,7 @@ fun createCommandBuffers() {
                 it.offset { offset -> offset.set(0, 0) }
                 it.extent(vkSwapChainExtent)
             }
-            .pClearValues(clearColor.stackPointer(VkClearValue::mallocStack, stack))
+            .pClearValues(stack.structs(VkClearValue::mallocStack, clearColor))
         commandBuffers.forEach {
             val commandBuffer = VkCommandBuffer(get(it), vkDevice)
             checkedAction("begin command buffer $it") {
@@ -70,8 +73,14 @@ fun createCommandBuffers() {
             }
             renderPassInfo.framebuffer(vkSwapChainFramebuffers[it])
             vkCmdBeginRenderPass(commandBuffer, renderPassInfo, VK_SUBPASS_CONTENTS_INLINE)
+
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline)
-            vkCmdDraw(commandBuffer, 3, 1, 0, 0)
+
+            vkCmdBindVertexBuffers(commandBuffer, 0, stack.longs(vkVertexBuffer), stack.longs(0))
+            vkCmdBindIndexBuffer(commandBuffer, vkIndexBuffer, 0, VK_INDEX_TYPE_UINT32)
+
+            vkCmdDrawIndexed(commandBuffer, INDICIES.remaining() / Integer.BYTES, 1, 0, 0, 0)
+
             vkCmdEndRenderPass(commandBuffer)
             checkedAction("end command buffer $it") {
                 vkEndCommandBuffer(commandBuffer)

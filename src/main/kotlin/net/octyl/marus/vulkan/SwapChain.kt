@@ -49,6 +49,7 @@ import org.lwjgl.vulkan.KHRSwapchain
 import org.lwjgl.vulkan.KHRSwapchain.vkDestroySwapchainKHR
 import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VK10.VK_FORMAT_B8G8R8A8_SRGB
+import org.lwjgl.vulkan.VK10.VK_FORMAT_B8G8R8A8_UNORM
 import org.lwjgl.vulkan.VK10.vkDestroyFramebuffer
 import org.lwjgl.vulkan.VK10.vkDestroyImageView
 import org.lwjgl.vulkan.VK10.vkDestroyPipeline
@@ -73,7 +74,7 @@ data class SwapChainDetails(
     fun pickBestFormat(): VkSurfaceFormatKHR {
         // first meeting conditions, or just first available
         return formats.firstOrNull {
-            it.format() == VK_FORMAT_B8G8R8A8_SRGB &&
+            it.format() == VK_FORMAT_B8G8R8A8_UNORM &&
                 it.colorSpace() == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
         } ?: formats.first()
     }
