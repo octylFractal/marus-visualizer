@@ -2,18 +2,24 @@ package net.octyl.marus.vulkan
 
 import net.octyl.marus.INDICIES
 import net.octyl.marus.VERTICES
+import net.octyl.marus.data.UniformBufferObject
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.pushStack
 import net.octyl.marus.util.struct.memByteBuffer
+import net.octyl.marus.util.struct.sizeof
 import net.octyl.marus.util.structs
 import net.octyl.marus.vkCommandPool
 import net.octyl.marus.vkDevice
 import net.octyl.marus.vkIndexBuffer
 import net.octyl.marus.vkIndexBufferMemory
+import net.octyl.marus.vkSwapChainImages
+import net.octyl.marus.vkUniformBuffers
+import net.octyl.marus.vkUniformBuffersMemory
 import net.octyl.marus.vkVertexBuffer
 import net.octyl.marus.vkVertexBufferMemory
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil.memAddress
+import org.lwjgl.system.MemoryUtil.memByteBuffer
 import org.lwjgl.system.MemoryUtil.memCopy
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkBufferCopy
@@ -46,10 +52,31 @@ fun createIndexBuffer() {
         val buffer = stack.mallocLong(1)
         val memory = stack.mallocLong(1)
 
-        uploadData(stack, INDICIES, buffer, memory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
+        uploadData(stack, memByteBuffer(INDICIES), buffer, memory, VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
 
         vkIndexBuffer = buffer[0]
         vkIndexBufferMemory = memory[0]
+    }
+}
+
+fun createUniformBuffers() {
+    closer {
+        val stack = pushStack()
+        val count = vkSwapChainImages.size
+        val buffer = (0 until count).map { stack.mallocLong(1) }
+        val memory = (0 until count).map { stack.mallocLong(1) }
+
+        for (i in (0 until count)) {
+            createBuffer(stack,
+                size = sizeof(UniformBufferObject).toLong(),
+                bufferFlags = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                memoryFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                buffer = buffer[i],
+                memory = memory[i])
+        }
+
+        vkUniformBuffers = buffer.map { it[0] }
+        vkUniformBuffersMemory = memory.map { it[0] }
     }
 }
 

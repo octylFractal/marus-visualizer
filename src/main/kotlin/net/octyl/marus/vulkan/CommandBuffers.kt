@@ -25,9 +25,11 @@ import net.octyl.marus.util.pushStack
 import net.octyl.marus.util.structs
 import net.octyl.marus.vkCommandBuffers
 import net.octyl.marus.vkCommandPool
+import net.octyl.marus.vkDescriptorSets
 import net.octyl.marus.vkDevice
 import net.octyl.marus.vkIndexBuffer
 import net.octyl.marus.vkPipeline
+import net.octyl.marus.vkPipelineLayout
 import net.octyl.marus.vkRenderPass
 import net.octyl.marus.vkSwapChainFramebuffers
 import net.octyl.marus.vkVertexBuffer
@@ -79,7 +81,10 @@ fun createCommandBuffers() {
             vkCmdBindVertexBuffers(commandBuffer, 0, stack.longs(vkVertexBuffer), stack.longs(0))
             vkCmdBindIndexBuffer(commandBuffer, vkIndexBuffer, 0, VK_INDEX_TYPE_UINT32)
 
-            vkCmdDrawIndexed(commandBuffer, INDICIES.remaining() / Integer.BYTES, 1, 0, 0, 0)
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipelineLayout,
+                0, stack.longs(vkDescriptorSets[it]), null)
+
+            vkCmdDrawIndexed(commandBuffer, INDICIES.remaining(), 1, 0, 0, 0)
 
             vkCmdEndRenderPass(commandBuffer)
             checkedAction("end command buffer $it") {

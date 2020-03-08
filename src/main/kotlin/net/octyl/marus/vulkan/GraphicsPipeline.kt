@@ -22,6 +22,7 @@ import net.octyl.marus.data.Vertex
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.pushStack
 import net.octyl.marus.util.structs
+import net.octyl.marus.vkDescriptorSetLayout
 import net.octyl.marus.vkDevice
 import net.octyl.marus.vkPipeline
 import net.octyl.marus.vkPipelineLayout
@@ -133,7 +134,7 @@ fun createGraphicsPipeline() {
             .polygonMode(VK_POLYGON_MODE_FILL)
             .lineWidth(1.0f)
             .cullMode(VK_CULL_MODE_BACK_BIT)
-            .frontFace(VK_FRONT_FACE_CLOCKWISE)
+            .frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
             .depthBiasEnable(false)
         val multiSampling = VkPipelineMultisampleStateCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO)
@@ -187,6 +188,7 @@ private fun createPipelineLayout() {
         val stack = pushStack()
         val pipelineLayoutInfo = VkPipelineLayoutCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
+            .pSetLayouts(stack.longs(vkDescriptorSetLayout))
         val pipelineLayout = stack.mallocLong(1)
         checkedCreate("pipeline layout") {
             vkCreatePipelineLayout(vkDevice, pipelineLayoutInfo, null, pipelineLayout)

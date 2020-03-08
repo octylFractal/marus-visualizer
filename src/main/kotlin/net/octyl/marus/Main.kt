@@ -38,6 +38,7 @@ import org.lwjgl.vulkan.EXTDebugUtils.vkDestroyDebugUtilsMessengerEXT
 import org.lwjgl.vulkan.KHRSurface.vkDestroySurfaceKHR
 import org.lwjgl.vulkan.VK10.vkDestroyBuffer
 import org.lwjgl.vulkan.VK10.vkDestroyCommandPool
+import org.lwjgl.vulkan.VK10.vkDestroyDescriptorSetLayout
 import org.lwjgl.vulkan.VK10.vkDestroyDevice
 import org.lwjgl.vulkan.VK10.vkDestroyFence
 import org.lwjgl.vulkan.VK10.vkDestroyInstance
@@ -48,7 +49,7 @@ import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.slf4j.LoggerFactory
 import java.io.PrintStream
-import java.nio.ByteBuffer
+import java.nio.IntBuffer
 import java.nio.LongBuffer
 
 private val LOGGER = KotlinLogging.logger { }
@@ -60,6 +61,7 @@ var vkSurface = NULL
 var vkSwapChain = NULL
 lateinit var vkSwapChainImages: LongArray
 lateinit var vkImageViews: LongArray
+var vkDescriptorSetLayout = NULL
 var vkPipelineLayout = NULL
 var vkRenderPass = NULL
 var vkPipeline = NULL
@@ -79,13 +81,17 @@ val VERTICES: MvStructBuffer<Vertex> = listOf(
     Vertex.create().position(0.5f, 0.5f).color(0.0f, 0.0f, 1.0f),
     Vertex.create().position(-0.5f, 0.5f).color(1.0f, 0.0f, 1.0f)
 ).toBuffer(Vertex::create)
-val INDICIES: ByteBuffer = BufferUtils.createByteBuffer(Integer.BYTES * 6).also {
-    it.asIntBuffer().put(intArrayOf(0, 1, 2, 2, 3, 0))
+val INDICIES: IntBuffer = BufferUtils.createIntBuffer(6).also {
+    it.put(intArrayOf(0, 1, 2, 2, 3, 0)).flip()
 }
 var vkVertexBuffer = NULL
 var vkVertexBufferMemory = NULL
 var vkIndexBuffer = NULL
 var vkIndexBufferMemory = NULL
+lateinit var vkUniformBuffers: List<Long>
+lateinit var vkUniformBuffersMemory: List<Long>
+var vkDescriptorPool = NULL
+lateinit var vkDescriptorSets: LongBuffer
 
 var swapChainOutdated = false
 
@@ -118,7 +124,7 @@ private fun initWindow() {
 
 private fun mainLoop() {
     while (!glfwWindowShouldClose(window)) {
-        glfwWaitEvents()
+        glfwPollEvents()
         drawFrame()
     }
     vkDeviceWaitIdle(vkDevice)
@@ -126,6 +132,7 @@ private fun mainLoop() {
 
 private fun cleanup() {
     if (::vkDevice.isInitialized) {
+        vkDestroyDescriptorSetLayout(vkDevice, vkDescriptorSetLayout, null)
         vkDestroyBuffer(vkDevice, vkVertexBuffer, null)
         vkFreeMemory(vkDevice, vkVertexBufferMemory, null)
         vkDestroyBuffer(vkDevice, vkIndexBuffer, null)
@@ -149,12 +156,8 @@ private fun cleanup() {
         vkDestroyCommandPool(vkDevice, vkCommandPool, null)
         vkDestroyDevice(vkDevice, null)
     }
-    if (vkSurface != NULL) {
-        vkDestroySurfaceKHR(vkInstance, vkSurface, null)
-    }
-    if (vkDebugCallback != NULL) {
-        vkDestroyDebugUtilsMessengerEXT(vkInstance, vkDebugCallback, null)
-    }
+    vkDestroySurfaceKHR(vkInstance, vkSurface, null)
+    vkDestroyDebugUtilsMessengerEXT(vkInstance, vkDebugCallback, null)
     vkDestroyInstance(vkInstance, null)
     glfwDestroyWindow(window)
     glfwTerminate()

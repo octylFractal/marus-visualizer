@@ -27,6 +27,7 @@ import net.octyl.marus.util.listAllElements
 import net.octyl.marus.util.pushStack
 import net.octyl.marus.vkCommandBuffers
 import net.octyl.marus.vkCommandPool
+import net.octyl.marus.vkDescriptorPool
 import net.octyl.marus.vkDevice
 import net.octyl.marus.vkImageViews
 import net.octyl.marus.vkPipeline
@@ -36,13 +37,15 @@ import net.octyl.marus.vkSurface
 import net.octyl.marus.vkSwapChain
 import net.octyl.marus.vkSwapChainFramebuffers
 import net.octyl.marus.vkSwapChainImages
+import net.octyl.marus.vkUniformBuffers
+import net.octyl.marus.vkUniformBuffersMemory
 import net.octyl.marus.window
 import org.lwjgl.glfw.GLFW.glfwGetFramebufferSize
 import org.lwjgl.glfw.GLFW.glfwWaitEvents
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memCopy
-import org.lwjgl.vulkan.KHRSurface
 import org.lwjgl.vulkan.KHRSurface.VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+import org.lwjgl.vulkan.KHRSurface.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
 import org.lwjgl.vulkan.KHRSurface.VK_PRESENT_MODE_FIFO_KHR
 import org.lwjgl.vulkan.KHRSurface.vkGetPhysicalDeviceSurfaceCapabilitiesKHR
 import org.lwjgl.vulkan.KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR
@@ -51,15 +54,7 @@ import org.lwjgl.vulkan.KHRSwapchain.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkCreateSwapchainKHR
 import org.lwjgl.vulkan.KHRSwapchain.vkDestroySwapchainKHR
 import org.lwjgl.vulkan.KHRSwapchain.vkGetSwapchainImagesKHR
-import org.lwjgl.vulkan.VK10
-import org.lwjgl.vulkan.VK10.VK_FORMAT_B8G8R8A8_UNORM
-import org.lwjgl.vulkan.VK10.vkDestroyFramebuffer
-import org.lwjgl.vulkan.VK10.vkDestroyImageView
-import org.lwjgl.vulkan.VK10.vkDestroyPipeline
-import org.lwjgl.vulkan.VK10.vkDestroyPipelineLayout
-import org.lwjgl.vulkan.VK10.vkDestroyRenderPass
-import org.lwjgl.vulkan.VK10.vkDeviceWaitIdle
-import org.lwjgl.vulkan.VK10.vkFreeCommandBuffers
+import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkExtent2D
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkSurfaceCapabilitiesKHR
@@ -161,6 +156,9 @@ fun recreateSwapChain() {
     createRenderPass()
     createGraphicsPipeline()
     createFramebuffer()
+    createUniformBuffers()
+    createDescriptorPool()
+    createDescriptorSets()
     createCommandBuffers()
 }
 
@@ -193,6 +191,13 @@ fun cleanupSwapChain() {
     }
 
     vkDestroySwapchainKHR(vkDevice, vkSwapChain, null)
+
+    for (i in vkUniformBuffers.indices) {
+        vkDestroyBuffer(vkDevice, vkUniformBuffers[i], null)
+        vkFreeMemory(vkDevice, vkUniformBuffersMemory[i], null)
+    }
+
+    vkDestroyDescriptorPool(vkDevice, vkDescriptorPool, null)
 }
 
 fun createSwapChain() {
@@ -217,19 +222,19 @@ fun createSwapChain() {
             .imageFormat(format.format())
             .imageColorSpace(format.colorSpace())
             .imageArrayLayers(1)
-            .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+            .imageUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
 
         val queues = queues.allQueues.map { it.index }.distinct()
 
         if (queues.size == 2) {
-            createInfo.imageSharingMode(VK10.VK_SHARING_MODE_CONCURRENT)
+            createInfo.imageSharingMode(VK_SHARING_MODE_CONCURRENT)
                 .pQueueFamilyIndices(stack.ints(*queues.toIntArray()))
         } else {
-            createInfo.imageSharingMode(VK10.VK_SHARING_MODE_EXCLUSIVE)
+            createInfo.imageSharingMode(VK_SHARING_MODE_EXCLUSIVE)
         }
 
         createInfo.preTransform(details.capabilities.currentTransform())
-            .compositeAlpha(KHRSurface.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
+            .compositeAlpha(VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
             .presentMode(presentMode)
             .clipped(true)
             .oldSwapchain(MemoryUtil.NULL)

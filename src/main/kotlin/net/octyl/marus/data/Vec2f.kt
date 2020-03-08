@@ -1,8 +1,6 @@
 package net.octyl.marus.data
 
 import net.octyl.marus.util.struct.Layout
-import net.octyl.marus.util.struct.Member
-import net.octyl.marus.util.struct.MemberType
 import net.octyl.marus.util.struct.MvStruct
 import net.octyl.marus.util.struct.MvStructType
 import net.octyl.marus.util.struct.floatMember

@@ -20,6 +20,7 @@ package net.octyl.marus.util
 
 import org.lwjgl.BufferUtils
 import org.lwjgl.system.CustomBuffer
+import org.lwjgl.system.MemoryUtil.memCopy
 import java.nio.Buffer
 import java.nio.LongBuffer
 
@@ -57,8 +58,8 @@ inline fun <B : Buffer, T> B.asSequence(crossinline block: B.(index: Int) -> T):
     }
 }
 
-fun LongBuffer.exportAsDirect(): LongBuffer = BufferUtils.createLongBuffer(remaining())
-    .put(this)
-    .flip()
+fun LongBuffer.exportAsDirect(): LongBuffer = BufferUtils.createLongBuffer(remaining()).also { new ->
+    memCopy(this, new)
+}
 
 fun Buffer.incrementPosition(): Buffer = position(position() + 1)

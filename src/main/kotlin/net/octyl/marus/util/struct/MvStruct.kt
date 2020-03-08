@@ -7,6 +7,7 @@ import org.lwjgl.system.MemoryUtil.memAlloc
 import org.lwjgl.system.MemoryUtil.memByteBuffer
 import org.lwjgl.system.MemoryUtil.memCalloc
 import org.lwjgl.system.MemoryUtil.memCopy
+import org.lwjgl.system.MemoryUtil.memDuplicate
 import org.lwjgl.system.MemoryUtil.nmemAllocChecked
 import org.lwjgl.system.MemoryUtil.nmemCallocChecked
 import java.nio.ByteBuffer
@@ -28,7 +29,19 @@ abstract class MvStruct<SELF : MvStruct<SELF>>(
     fun <T> Member<T>.set(value: T): SELF = asSelf().apply {
         container.put(this@set, type.layout, value)
     }
+
+    override fun toString(): String {
+        return type.layout.members.joinToString(
+            separator = ",",
+            prefix = "${this.javaClass.simpleName}[",
+            postfix = "]"
+        ) { member ->
+            "${member.name}=${member.get()}"
+        }
+    }
 }
+
+fun memByteBuffer(buffer: MvStruct<*>): ByteBuffer = memDuplicate(buffer.container)
 
 class MvStructBuffer<S : MvStruct<S>>(
     val address: Long,
