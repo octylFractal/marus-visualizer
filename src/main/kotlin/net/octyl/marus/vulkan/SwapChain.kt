@@ -19,6 +19,8 @@
 package net.octyl.marus.vulkan
 
 import mu.KotlinLogging
+import net.octyl.marus.util.VkColorSpace
+import net.octyl.marus.util.VkFormatName
 import net.octyl.marus.util.asSequence
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.listAllElements
@@ -45,10 +47,11 @@ import org.lwjgl.vulkan.KHRSurface.VK_PRESENT_MODE_FIFO_KHR
 import org.lwjgl.vulkan.KHRSurface.vkGetPhysicalDeviceSurfaceCapabilitiesKHR
 import org.lwjgl.vulkan.KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR
 import org.lwjgl.vulkan.KHRSurface.vkGetPhysicalDeviceSurfacePresentModesKHR
-import org.lwjgl.vulkan.KHRSwapchain
+import org.lwjgl.vulkan.KHRSwapchain.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR
+import org.lwjgl.vulkan.KHRSwapchain.vkCreateSwapchainKHR
 import org.lwjgl.vulkan.KHRSwapchain.vkDestroySwapchainKHR
+import org.lwjgl.vulkan.KHRSwapchain.vkGetSwapchainImagesKHR
 import org.lwjgl.vulkan.VK10
-import org.lwjgl.vulkan.VK10.VK_FORMAT_B8G8R8A8_SRGB
 import org.lwjgl.vulkan.VK10.VK_FORMAT_B8G8R8A8_UNORM
 import org.lwjgl.vulkan.VK10.vkDestroyFramebuffer
 import org.lwjgl.vulkan.VK10.vkDestroyImageView
@@ -73,11 +76,16 @@ data class SwapChainDetails(
     val isComplete = formats.isNotEmpty() && presentModes.isNotEmpty()
     fun pickBestFormat(): VkSurfaceFormatKHR {
         // first meeting conditions, or just first available
-        return formats.firstOrNull {
+        val selected = formats.firstOrNull {
             it.format() == VK_FORMAT_B8G8R8A8_UNORM &&
                 it.colorSpace() == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
         } ?: formats.first()
+        LOGGER.info { "Picked format: ${selected.toReadableString()}" }
+        return selected
     }
+
+    private fun VkSurfaceFormatKHR.toReadableString() =
+        "Format: ${VkFormatName[format()]}, Color Space: ${VkColorSpace[colorSpace()]}"
 
     fun pickBestPresentMode(): Int {
         // easiest mode to work with
@@ -194,12 +202,6 @@ fun createSwapChain() {
 
         val format = details.pickBestFormat()
         val presentMode = details.pickBestPresentMode()
-        val extent = VkExtent2D.callocStack(stack)
-        glfwGetFramebufferSize(window,
-            MemoryUtil.memIntBuffer(extent.address() + VkExtent2D.WIDTH, 1),
-            MemoryUtil.memIntBuffer(extent.address() + VkExtent2D.HEIGHT, 1)
-        )
-        details.pickSwapExtent(extent)
 
         val imageCount = (details.capabilities.minImageCount() + 1).let { imageCount ->
             when (val maxImageCount = details.capabilities.maxImageCount()) {
@@ -209,12 +211,11 @@ fun createSwapChain() {
         }
 
         val createInfo = VkSwapchainCreateInfoKHR.callocStack(stack)
-            .sType(KHRSwapchain.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR)
+            .sType(VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR)
             .surface(vkSurface)
             .minImageCount(imageCount)
             .imageFormat(format.format())
             .imageColorSpace(format.colorSpace())
-            .imageExtent(extent)
             .imageArrayLayers(1)
             .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
 
@@ -233,15 +234,28 @@ fun createSwapChain() {
             .clipped(true)
             .oldSwapchain(MemoryUtil.NULL)
 
+        // sometimes we get into a race condition where the window has resized again
+        // try to avoid this by requerying immediately before creation
+        // https://github.com/KhronosGroup/Vulkan-Docs/issues/1144
+
+        val newDetails = querySwapChainSupport(vkPhysicalDevice)!!
+        val extent = VkExtent2D.callocStack(stack)
+        glfwGetFramebufferSize(window,
+            MemoryUtil.memIntBuffer(extent.address() + VkExtent2D.WIDTH, 1),
+            MemoryUtil.memIntBuffer(extent.address() + VkExtent2D.HEIGHT, 1)
+        )
+        newDetails.pickSwapExtent(extent)
+        createInfo.imageExtent(extent)
+
         val swapChainBuffer = stack.mallocLong(1)
         checkedCreate("swap chain") {
-            KHRSwapchain.vkCreateSwapchainKHR(vkDevice, createInfo, null, swapChainBuffer)
+            vkCreateSwapchainKHR(vkDevice, createInfo, null, swapChainBuffer)
         }
         vkSwapChain = swapChainBuffer.get()
 
         val swapImageBuffer = listAllElements({ count, stk -> stk.mallocLong(count) }) { count, output ->
             checkedGet("swap-chain images") {
-                KHRSwapchain.vkGetSwapchainImagesKHR(vkDevice, vkSwapChain, count, output)
+                vkGetSwapchainImagesKHR(vkDevice, vkSwapChain, count, output)
             }
         }
         vkSwapChainImages = swapImageBuffer.let {
