@@ -23,24 +23,24 @@ import org.slf4j.Logger
 
 val VK_STD_SUCCESS_CODES = setOf(VK_SUCCESS)
 
-inline fun checkedCreate(description: String, successCodes: Set<Int> = VK_STD_SUCCESS_CODES, block: () -> Int) =
-    checkedAction("create $description", successCodes, block)
+inline fun checkedCreate(description: () -> String, successCodes: Set<Int> = VK_STD_SUCCESS_CODES, block: () -> Int) =
+    checkedAction({ "create ${description()}" }, successCodes, block)
 
-inline fun checkedGet(description: String, successCodes: Set<Int> = VK_STD_SUCCESS_CODES, block: () -> Int) =
-    checkedAction("get $description", successCodes, block)
+inline fun checkedGet(description: () -> String, successCodes: Set<Int> = VK_STD_SUCCESS_CODES, block: () -> Int) =
+    checkedAction({ "get ${description()}" }, successCodes, block)
 
-inline fun checkedAction(action: String, successCodes: Set<Int> = VK_STD_SUCCESS_CODES, block: () -> Int): Int {
+inline fun checkedAction(action: () -> String, successCodes: Set<Int> = VK_STD_SUCCESS_CODES, block: () -> Int): Int {
     val err = block()
     check(err in successCodes) {
-        failureMessage(action, err)
+        failureMessage(action(), err)
     }
     return err
 }
 
-inline fun Logger.logFailure(action: String, successCodes: Set<Int> = VK_STD_SUCCESS_CODES, block: () -> Int): Int? {
+inline fun Logger.logFailure(action: () -> String, successCodes: Set<Int> = VK_STD_SUCCESS_CODES, block: () -> Int): Int? {
     val err = block()
     if (err !in successCodes) {
-        warn(failureMessage(action, err))
+        warn(failureMessage(action(), err))
         return err
     }
     return null

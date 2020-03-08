@@ -26,7 +26,7 @@ fun createDescriptorSetLayout() {
             .pBindings(stack.structs(VkDescriptorSetLayoutBinding::mallocStack, uboLayoutBinding))
 
         val layout = stack.mallocLong(1)
-        checkedCreate("descriptor set layout") {
+        checkedCreate({ "descriptor set layout" }) {
             vkCreateDescriptorSetLayout(vkDevice, layoutInfo, null, layout)
         }
         vkDescriptorSetLayout = layout[0]

@@ -19,7 +19,7 @@
 package net.octyl.marus.vulkan
 
 import net.octyl.marus.Resources
-import net.octyl.marus.util.toByteBuffer
+import net.octyl.marus.util.byteBuffer
 import org.lwjgl.BufferUtils
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil.NULL
@@ -39,14 +39,14 @@ import java.io.IOException
 import java.nio.ByteBuffer
 
 fun compileGlslToSpirv(classPath: String, stage: ShaderStage): ByteBuffer {
-    val src: ByteBuffer = Resources.getResource(classPath).toByteBuffer()
+    val src: ByteBuffer = byteBuffer { Resources.getResource(classPath) }
     val compiler: Long = shaderc_compiler_initialize()
     val options: Long = shaderc_compile_options_initialize()
     val resolver = ShadercIncludeResolve.create { _, requested_source, _, _, _ ->
         val res: ShadercIncludeResult = ShadercIncludeResult.calloc()
         try {
             val source = classPath.substring(0, classPath.lastIndexOf('/')) + "/" + memUTF8(requested_source)
-            res.content(Resources.getResource(source).toByteBuffer())
+            res.content(byteBuffer { Resources.getResource(source) })
             res.source_name(memUTF8(source))
             res.address()
         } catch (e: IOException) {

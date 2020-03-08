@@ -44,7 +44,7 @@ fun createFramebuffer() {
                 .height(vkSwapChainExtent.height())
                 .layers(1)
 
-            checkedCreate("framebuffer $it") {
+            checkedCreate({ "framebuffer $it" }) {
                 vkCreateFramebuffer(vkDevice, framebufferInfo, null, framebuffers)
             }
             framebuffers.position(framebuffers.position() + 1)

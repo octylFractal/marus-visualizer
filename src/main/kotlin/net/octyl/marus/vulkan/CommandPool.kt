@@ -34,7 +34,7 @@ fun createCommandPool() {
             .queueFamilyIndex(vkPhysicalDevice.findQueues().graphicsQueue!!.index)
 
         val commandPool = stack.mallocLong(1)
-        checkedCreate("command pool") {
+        checkedCreate({ "command pool" }) {
             vkCreateCommandPool(vkDevice, poolInfo, null, commandPool)
         }
         vkCommandPool = commandPool[0]

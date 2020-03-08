@@ -24,7 +24,7 @@ fun createDescriptorPool() {
             .maxSets(vkSwapChainImages.size)
 
         val pool = stack.mallocLong(1)
-        checkedCreate("descriptor pool") {
+        checkedCreate({ "descriptor pool" }) {
             vkCreateDescriptorPool(vkDevice, poolInfo, null, pool)
         }
         vkDescriptorPool = pool[0]

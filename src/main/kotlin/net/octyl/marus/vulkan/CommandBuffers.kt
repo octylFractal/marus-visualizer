@@ -51,7 +51,7 @@ fun createCommandBuffers() {
             .commandPool(vkCommandPool)
             .level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
             .commandBufferCount(commandBuffers.remaining())
-        checkedCreate("command buffers") {
+        checkedCreate({ "command buffers" }) {
             vkAllocateCommandBuffers(vkDevice, allocInfo, commandBuffers)
         }
 
@@ -70,7 +70,7 @@ fun createCommandBuffers() {
             .pClearValues(stack.structs(VkClearValue::mallocStack, clearColor))
         commandBuffers.forEach {
             val commandBuffer = VkCommandBuffer(get(it), vkDevice)
-            checkedAction("begin command buffer $it") {
+            checkedAction({ "begin command buffer $it" }) {
                 vkBeginCommandBuffer(commandBuffer, beginInfo)
             }
             renderPassInfo.framebuffer(vkSwapChainFramebuffers[it])
@@ -78,8 +78,8 @@ fun createCommandBuffers() {
 
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline)
 
-            vkCmdBindVertexBuffers(commandBuffer, 0, stack.longs(vkVertexBuffer), stack.longs(0))
-            vkCmdBindIndexBuffer(commandBuffer, vkIndexBuffer, 0, VK_INDEX_TYPE_UINT32)
+            vkCmdBindVertexBuffers(commandBuffer, 0, stack.longs(vkVertexBuffer.buffer), stack.longs(0))
+            vkCmdBindIndexBuffer(commandBuffer, vkIndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32)
 
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipelineLayout,
                 0, stack.longs(vkDescriptorSets[it]), null)
@@ -87,7 +87,7 @@ fun createCommandBuffers() {
             vkCmdDrawIndexed(commandBuffer, INDICIES.remaining(), 1, 0, 0, 0)
 
             vkCmdEndRenderPass(commandBuffer)
-            checkedAction("end command buffer $it") {
+            checkedAction({ "end command buffer $it" }) {
                 vkEndCommandBuffer(commandBuffer)
             }
         }

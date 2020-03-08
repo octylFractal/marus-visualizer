@@ -31,3 +31,5 @@ fun InputStream.toByteBuffer(): ByteBuffer {
     buffer.flip()
     return buffer
 }
+
+inline fun byteBuffer(stream: () -> InputStream) = stream().use { it.toByteBuffer() }

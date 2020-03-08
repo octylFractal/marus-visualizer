@@ -52,7 +52,7 @@ class Shader(
                 .sType(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO)
                 .pCode(shader)
             val shaderModule = stack.mallocLong(1)
-            checkedCreate("shader module '$sourcePath' for $stage") {
+            checkedCreate({ "shader module '$sourcePath' for $stage" }) {
                 vkCreateShaderModule(vkDevice, createInfo, null, shaderModule)
             }
             shaderModule.get()

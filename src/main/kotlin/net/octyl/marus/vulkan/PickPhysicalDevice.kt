@@ -46,7 +46,7 @@ fun pickPhysicalDevice(): VkPhysicalDevice {
     return closer {
         val stack = pushStack()
         val physicalDevices = listAllElements({ count, stk -> stk.mallocPointer(count) }, stack) { count, output ->
-            checkedAction("enumerate physical devices") {
+            checkedAction({ "enumerate physical devices" }) {
                 vkEnumeratePhysicalDevices(vkInstance, count, output)
             }
         }

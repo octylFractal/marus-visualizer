@@ -72,7 +72,7 @@ fun VkPhysicalDevice.findQueues(): Queues {
             }
             if (queues.presentQueue == null) {
                 val isSupported = stack.mallocInt(1)
-                checkedGet("surface support") {
+                checkedGet({ "surface support" }) {
                     vkGetPhysicalDeviceSurfaceSupportKHR(this@findQueues, index, vkSurface, isSupported)
                 }
                 if (isSupported.get() == VK_TRUE) {

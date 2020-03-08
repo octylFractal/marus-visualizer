@@ -135,7 +135,7 @@ private fun createInstance() {
         createInfo.ppEnabledExtensionNames(newBuffer)
 
         vkInstance = stack.mallocPointer(1).let { buffer ->
-            checkedCreate("Vulkan instance") {
+            checkedCreate({ "Vulkan instance" }) {
                 vkCreateInstance(createInfo, null, buffer)
             }
             VkInstance(buffer.get(), createInfo)
@@ -184,7 +184,7 @@ private fun setupDebugMessenger() {
             }
 
         val messenger = stack.mallocLong(1)
-        checkedCreate("debug messenger") {
+        checkedCreate({ "debug messenger" }) {
             vkCreateDebugUtilsMessengerEXT(vkInstance, createInfo, null, messenger)
         }
         vkDebugCallback = messenger.get()
@@ -209,7 +209,7 @@ private fun createLogicalDevice() {
             ))
 
         val logicalDevice = stack.mallocPointer(1)
-        checkedCreate("logical device") {
+        checkedCreate({ "logical device" }) {
             vkCreateDevice(vkPhysicalDevice, deviceCreateInfo, null, logicalDevice)
         }
         vkDevice = VkDevice(logicalDevice.get(), vkPhysicalDevice, deviceCreateInfo)
@@ -244,7 +244,7 @@ fun createImageViews() {
         for (i in vkSwapChainImages.indices) {
             createInfo.image(vkSwapChainImages[i])
 
-            checkedCreate("image view $i") {
+            checkedCreate({ "image view $i" }) {
                 vkCreateImageView(vkDevice, createInfo, null, outputBuffer)
             }
             // after success, advance the buffer

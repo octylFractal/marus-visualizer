@@ -24,6 +24,7 @@ import net.octyl.marus.util.LineOutputStream
 import net.octyl.marus.util.forEach
 import net.octyl.marus.util.struct.MvStructBuffer
 import net.octyl.marus.util.struct.toBuffer
+import net.octyl.marus.vulkan.BufferHandles
 import net.octyl.marus.vulkan.cleanupSwapChain
 import net.octyl.marus.vulkan.drawFrame
 import net.octyl.marus.vulkan.initVulkan
@@ -36,7 +37,6 @@ import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.vulkan.EXTDebugUtils.vkDestroyDebugUtilsMessengerEXT
 import org.lwjgl.vulkan.KHRSurface.vkDestroySurfaceKHR
-import org.lwjgl.vulkan.VK10.vkDestroyBuffer
 import org.lwjgl.vulkan.VK10.vkDestroyCommandPool
 import org.lwjgl.vulkan.VK10.vkDestroyDescriptorSetLayout
 import org.lwjgl.vulkan.VK10.vkDestroyDevice
@@ -44,7 +44,6 @@ import org.lwjgl.vulkan.VK10.vkDestroyFence
 import org.lwjgl.vulkan.VK10.vkDestroyInstance
 import org.lwjgl.vulkan.VK10.vkDestroySemaphore
 import org.lwjgl.vulkan.VK10.vkDeviceWaitIdle
-import org.lwjgl.vulkan.VK10.vkFreeMemory
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.slf4j.LoggerFactory
@@ -84,12 +83,9 @@ val VERTICES: MvStructBuffer<Vertex> = listOf(
 val INDICIES: IntBuffer = BufferUtils.createIntBuffer(6).also {
     it.put(intArrayOf(0, 1, 2, 2, 3, 0)).flip()
 }
-var vkVertexBuffer = NULL
-var vkVertexBufferMemory = NULL
-var vkIndexBuffer = NULL
-var vkIndexBufferMemory = NULL
-lateinit var vkUniformBuffers: List<Long>
-lateinit var vkUniformBuffersMemory: List<Long>
+lateinit var vkVertexBuffer: BufferHandles
+lateinit var vkIndexBuffer: BufferHandles
+lateinit var vkUniformBuffers: List<BufferHandles>
 var vkDescriptorPool = NULL
 lateinit var vkDescriptorSets: LongBuffer
 
@@ -120,6 +116,11 @@ private fun initWindow() {
     glfwSetFramebufferSizeCallback(window) { _, _, _ ->
         swapChainOutdated = true
     }
+    glfwSetKeyCallback(window) { window, key, _, _, _ ->
+        if (key == GLFW_KEY_ESCAPE) {
+            glfwSetWindowShouldClose(window, true)
+        }
+    }
 }
 
 private fun mainLoop() {
@@ -133,10 +134,8 @@ private fun mainLoop() {
 private fun cleanup() {
     if (::vkDevice.isInitialized) {
         vkDestroyDescriptorSetLayout(vkDevice, vkDescriptorSetLayout, null)
-        vkDestroyBuffer(vkDevice, vkVertexBuffer, null)
-        vkFreeMemory(vkDevice, vkVertexBufferMemory, null)
-        vkDestroyBuffer(vkDevice, vkIndexBuffer, null)
-        vkFreeMemory(vkDevice, vkIndexBufferMemory, null)
+        vkVertexBuffer.destroy(vkDevice)
+        vkIndexBuffer.destroy(vkDevice)
         if (::vkImageAvailableSemaphores.isInitialized) {
             vkImageAvailableSemaphores.forEach {
                 vkDestroySemaphore(vkDevice, get(it), null)

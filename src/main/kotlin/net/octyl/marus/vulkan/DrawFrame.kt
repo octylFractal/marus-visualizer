@@ -25,7 +25,6 @@ import net.octyl.marus.swapChainOutdated
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.pushStack
 import net.octyl.marus.util.struct.memByteBuffer
-import net.octyl.marus.util.struct.sizeof
 import net.octyl.marus.vkCommandBuffers
 import net.octyl.marus.vkDevice
 import net.octyl.marus.vkImageAvailableSemaphores
@@ -33,10 +32,10 @@ import net.octyl.marus.vkImagesInFlight
 import net.octyl.marus.vkInflightFences
 import net.octyl.marus.vkRenderFinishedSemaphores
 import net.octyl.marus.vkSwapChain
-import net.octyl.marus.vkUniformBuffersMemory
+import net.octyl.marus.vkUniformBuffers
 import org.joml.Matrix4f
 import org.joml.Vector3f
-import org.lwjgl.system.MemoryUtil.memCopy
+import org.lwjgl.system.MemoryUtil.memAddress
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_SUBOPTIMAL_KHR
@@ -45,10 +44,8 @@ import org.lwjgl.vulkan.KHRSwapchain.vkQueuePresentKHR
 import org.lwjgl.vulkan.VK10.VK_NULL_HANDLE
 import org.lwjgl.vulkan.VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
 import org.lwjgl.vulkan.VK10.VK_STRUCTURE_TYPE_SUBMIT_INFO
-import org.lwjgl.vulkan.VK10.vkMapMemory
 import org.lwjgl.vulkan.VK10.vkQueueSubmit
 import org.lwjgl.vulkan.VK10.vkResetFences
-import org.lwjgl.vulkan.VK10.vkUnmapMemory
 import org.lwjgl.vulkan.VK10.vkWaitForFences
 import org.lwjgl.vulkan.VkPresentInfoKHR
 import org.lwjgl.vulkan.VkSubmitInfo
@@ -69,7 +66,7 @@ fun drawFrame() {
         vkWaitForFences(vkDevice, inflightFence, true, Long.MAX_VALUE)
 
         val imageIndex = stack.mallocInt(1)
-        val result = checkedAction("acquire next image", successCodes = RESIZE_SUCCESS) {
+        val result = checkedAction({ "acquire next image" }, successCodes = RESIZE_SUCCESS) {
             vkAcquireNextImageKHR(
                 vkDevice, vkSwapChain, Long.MAX_VALUE, imageAvailableSemaphore, VK_NULL_HANDLE, imageIndex
             )
@@ -100,7 +97,7 @@ fun drawFrame() {
         submitInfo.pSignalSemaphores(signalSemaphores)
 
         vkResetFences(vkDevice, inflightFence)
-        checkedAction("queue submit") {
+        checkedAction({ "queue submit" }) {
             vkQueueSubmit(queues.graphicsQueue!!.queueHandle!!, submitInfo, inflightFence)
         }
 
@@ -111,7 +108,7 @@ fun drawFrame() {
         presentInfo.swapchainCount(swapChains.remaining())
             .pSwapchains(swapChains)
             .pImageIndices(imageIndex)
-        val queuePresentResult = checkedAction("queue present", successCodes = RESIZE_SUCCESS) {
+        val queuePresentResult = checkedAction({ "queue present" }, successCodes = RESIZE_SUCCESS) {
             vkQueuePresentKHR(queues.presentQueue!!.queueHandle!!, presentInfo)
         }
         if (swapChainOutdated || queuePresentResult in RESIZE_RESULTS) {
@@ -142,12 +139,5 @@ fun updateUniformBuffer(image: Int) {
             set(1, 1, get(1, 1) * -1)
         }
         .copyTo(UBO.proj())
-    closer {
-        val stack = pushStack()
-        val data = stack.mallocPointer(1)
-        val mem = vkUniformBuffersMemory[image]
-        vkMapMemory(vkDevice, mem, 0, sizeof(UniformBufferObject).toLong(), 0, data)
-        memCopy(memByteBuffer(UBO), data.getByteBuffer(0, sizeof(UniformBufferObject)))
-        vkUnmapMemory(vkDevice, mem)
-    }
+    vkUniformBuffers[image].copyFrom(vkDevice, memAddress(memByteBuffer(UBO)))
 }

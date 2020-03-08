@@ -50,15 +50,15 @@ fun createSyncObjects() {
         val renderFinishedSemaphores = stack.mallocLong(MAX_FRAMES_IN_FLIGHT)
         val inflightFences = stack.callocLong(MAX_FRAMES_IN_FLIGHT)
         for (i in 0 until MAX_FRAMES_IN_FLIGHT) {
-            checkedCreate("image available semaphore $i") {
+            checkedCreate({ "image available semaphore $i" }) {
                 vkCreateSemaphore(vkDevice, semaphoreInfo, null, imageAvailableSemaphores)
             }
             imageAvailableSemaphores.incrementPosition()
-            checkedCreate("render finished semaphore $i") {
+            checkedCreate({ "render finished semaphore $i" }) {
                 vkCreateSemaphore(vkDevice, semaphoreInfo, null, renderFinishedSemaphores)
             }
             renderFinishedSemaphores.incrementPosition()
-            checkedCreate("in-flight fence $i") {
+            checkedCreate({ "in-flight fence $i" }) {
                 vkCreateFence(vkDevice, fenceInfo, null, inflightFences)
             }
             inflightFences.incrementPosition()

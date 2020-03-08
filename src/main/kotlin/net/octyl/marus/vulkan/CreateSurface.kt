@@ -29,7 +29,7 @@ fun createSurface() {
     closer {
         val stack = pushStack()
         val surface = stack.mallocLong(1)
-        checkedCreate("surface") {
+        checkedCreate({ "surface" }) {
             glfwCreateWindowSurface(vkInstance, window, null, surface)
         }
         vkSurface = surface.get()

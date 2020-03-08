@@ -80,7 +80,7 @@ fun createRenderPass() {
             .pDependencies(stack.structs(VkSubpassDependency::mallocStack, dependency))
 
         val renderPass = stack.mallocLong(1)
-        checkedCreate("render pass") {
+        checkedCreate({ "render pass" }) {
             vkCreateRenderPass(vkDevice, renderPassInfo, null, renderPass)
         }
         vkRenderPass = renderPass[0]
@@ -174,7 +174,7 @@ fun createGraphicsPipeline() {
             .basePipelineIndex(-1)
 
         val pipeline = stack.mallocLong(1)
-        checkedCreate("pipeline") {
+        checkedCreate({ "pipeline" }) {
             vkCreateGraphicsPipelines(vkDevice, VK_NULL_HANDLE,
                 stack.structs(VkGraphicsPipelineCreateInfo::mallocStack, pipelineInfo),
                 null, pipeline)
@@ -190,7 +190,7 @@ private fun createPipelineLayout() {
             .sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
             .pSetLayouts(stack.longs(vkDescriptorSetLayout))
         val pipelineLayout = stack.mallocLong(1)
-        checkedCreate("pipeline layout") {
+        checkedCreate({ "pipeline layout" }) {
             vkCreatePipelineLayout(vkDevice, pipelineLayoutInfo, null, pipelineLayout)
         }
         vkPipelineLayout = pipelineLayout.get()

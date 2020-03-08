@@ -21,6 +21,7 @@ inciseBlue {
         addDependency("vulkan", natives = false)
         addDependency("shaderc")
         addDependency("jemalloc")
+        addDependency("stb")
     }
 }
 

@@ -33,7 +33,7 @@ fun createDescriptorSets() {
             ))
 
         val sets = stack.mallocLong(allocInfo.descriptorSetCount())
-        checkedCreate("descriptor sets") {
+        checkedCreate({ "descriptor sets" }) {
             vkAllocateDescriptorSets(vkDevice, allocInfo, sets)
         }
 
@@ -41,7 +41,7 @@ fun createDescriptorSets() {
             .offset(0)
             .range(sizeof(UniformBufferObject).toLong())
         sets.forEach {
-            bufferInfo.buffer(vkUniformBuffers[it])
+            bufferInfo.buffer(vkUniformBuffers[it].buffer)
             val descriptorWrite = VkWriteDescriptorSet.callocStack(stack)
                 .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
                 .dstSet(sets[it])

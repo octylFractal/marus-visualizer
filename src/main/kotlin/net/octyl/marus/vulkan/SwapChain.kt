@@ -38,7 +38,6 @@ import net.octyl.marus.vkSwapChain
 import net.octyl.marus.vkSwapChainFramebuffers
 import net.octyl.marus.vkSwapChainImages
 import net.octyl.marus.vkUniformBuffers
-import net.octyl.marus.vkUniformBuffersMemory
 import net.octyl.marus.window
 import org.lwjgl.glfw.GLFW.glfwGetFramebufferSize
 import org.lwjgl.glfw.GLFW.glfwWaitEvents
@@ -113,7 +112,7 @@ fun querySwapChainSupport(device: VkPhysicalDevice): SwapChainDetails? {
     return closer {
         val stack = pushStack()
         val capabilitiesStack = VkSurfaceCapabilitiesKHR.callocStack(stack)
-        LOGGER.logFailure("get surface capabilities") {
+        LOGGER.logFailure({ "get surface capabilities" }) {
             vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, vkSurface, capabilitiesStack)
         }?.let { return@closer null }
         // save for return if success -- we do to stack first for easy cleanup
@@ -122,7 +121,7 @@ fun querySwapChainSupport(device: VkPhysicalDevice): SwapChainDetails? {
         }
 
         val formatsBuffer = listAllElements(VkSurfaceFormatKHR::mallocStack, stack) { count, output ->
-            LOGGER.logFailure("get surface formats") {
+            LOGGER.logFailure({ "get surface formats" }) {
                 vkGetPhysicalDeviceSurfaceFormatsKHR(device, vkSurface, count, output)
             }?.let { return@closer null }
         }
@@ -134,7 +133,7 @@ fun querySwapChainSupport(device: VkPhysicalDevice): SwapChainDetails? {
         }
 
         val presentModesBuffer = listAllElements({ count, stk -> stk.mallocInt(count) }, stack) { count, output ->
-            LOGGER.logFailure("surface present modes") {
+            LOGGER.logFailure({ "surface present modes" }) {
                 vkGetPhysicalDeviceSurfacePresentModesKHR(device, vkSurface, count, output)
             }?.let { return@closer null }
         }
@@ -192,10 +191,7 @@ fun cleanupSwapChain() {
 
     vkDestroySwapchainKHR(vkDevice, vkSwapChain, null)
 
-    for (i in vkUniformBuffers.indices) {
-        vkDestroyBuffer(vkDevice, vkUniformBuffers[i], null)
-        vkFreeMemory(vkDevice, vkUniformBuffersMemory[i], null)
-    }
+    vkUniformBuffers.forEach { it.destroy(vkDevice) }
 
     vkDestroyDescriptorPool(vkDevice, vkDescriptorPool, null)
 }
@@ -253,13 +249,13 @@ fun createSwapChain() {
         createInfo.imageExtent(extent)
 
         val swapChainBuffer = stack.mallocLong(1)
-        checkedCreate("swap chain") {
+        checkedCreate({ "swap chain" }) {
             vkCreateSwapchainKHR(vkDevice, createInfo, null, swapChainBuffer)
         }
         vkSwapChain = swapChainBuffer.get()
 
         val swapImageBuffer = listAllElements({ count, stk -> stk.mallocLong(count) }) { count, output ->
-            checkedGet("swap-chain images") {
+            checkedGet({ "swap-chain images" }) {
                 vkGetSwapchainImagesKHR(vkDevice, vkSwapChain, count, output)
             }
         }
