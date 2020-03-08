@@ -19,14 +19,14 @@
 package net.octyl.marus
 
 import mu.KotlinLogging
+import net.octyl.marus.data.Vertex
 import net.octyl.marus.util.LineOutputStream
 import net.octyl.marus.util.forEach
-import net.octyl.marus.vulkan.Vertex
+import net.octyl.marus.util.struct.MvStructBuffer
+import net.octyl.marus.util.struct.toBuffer
 import net.octyl.marus.vulkan.cleanupSwapChain
 import net.octyl.marus.vulkan.drawFrame
 import net.octyl.marus.vulkan.initVulkan
-import org.joml.Vector2f
-import org.joml.Vector3f
 import org.lwjgl.BufferUtils
 import org.lwjgl.PointerBuffer
 import org.lwjgl.Version
@@ -73,16 +73,12 @@ lateinit var vkImagesInFlight: LongBuffer
 val DEBUG = System.getProperty("marus.debug")?.toBoolean() == true
 const val MAX_FRAMES_IN_FLIGHT = 2
 
-val VERTICES: ByteBuffer = BufferUtils.createByteBuffer(Vertex.SIZEOF * 4).also {
-    for ((index, vertex) in listOf(
-        Vertex(Vector2f(-0.5f, -0.5f), Vector3f(1.0f, 0.0f, .0f)),
-        Vertex(Vector2f(0.5f, -0.5f), Vector3f(0.0f, 1.0f, 0.0f)),
-        Vertex(Vector2f(0.5f, 0.5f), Vector3f(0.0f, 0.0f, 1.0f)),
-        Vertex(Vector2f(-0.5f, 0.5f), Vector3f(1.0f, 0.0f, 1.0f))
-    ).withIndex()) {
-        vertex.get(index * Vertex.SIZEOF, it)
-    }
-}
+val VERTICES: MvStructBuffer<Vertex> = listOf(
+    Vertex.create().position(-0.5f, -0.5f).color(1.0f, 0.0f, 0.0f),
+    Vertex.create().position(0.5f, -0.5f).color(0.0f, 1.0f, 0.0f),
+    Vertex.create().position(0.5f, 0.5f).color(0.0f, 0.0f, 1.0f),
+    Vertex.create().position(-0.5f, 0.5f).color(1.0f, 0.0f, 1.0f)
+).toBuffer(Vertex::create)
 val INDICIES: ByteBuffer = BufferUtils.createByteBuffer(Integer.BYTES * 6).also {
     it.asIntBuffer().put(intArrayOf(0, 1, 2, 2, 3, 0))
 }

@@ -18,6 +18,7 @@
 
 package net.octyl.marus.vulkan
 
+import net.octyl.marus.data.Vertex
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.pushStack
 import net.octyl.marus.util.structs
@@ -44,7 +45,6 @@ import org.lwjgl.vulkan.VkRect2D
 import org.lwjgl.vulkan.VkRenderPassCreateInfo
 import org.lwjgl.vulkan.VkSubpassDependency
 import org.lwjgl.vulkan.VkSubpassDescription
-import org.lwjgl.vulkan.VkVertexInputAttributeDescription
 import org.lwjgl.vulkan.VkVertexInputBindingDescription
 import org.lwjgl.vulkan.VkViewport
 

@@ -4,6 +4,7 @@ import net.octyl.marus.INDICIES
 import net.octyl.marus.VERTICES
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.pushStack
+import net.octyl.marus.util.struct.memByteBuffer
 import net.octyl.marus.util.structs
 import net.octyl.marus.vkCommandPool
 import net.octyl.marus.vkDevice
@@ -32,7 +33,7 @@ fun createVertexBuffer() {
         val buffer = stack.mallocLong(1)
         val memory = stack.mallocLong(1)
 
-        uploadData(stack, VERTICES, buffer, memory, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
+        uploadData(stack, memByteBuffer(VERTICES), buffer, memory, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
 
         vkVertexBuffer = buffer[0]
         vkVertexBufferMemory = memory[0]

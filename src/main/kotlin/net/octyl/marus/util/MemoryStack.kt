@@ -19,6 +19,7 @@
 package net.octyl.marus.util
 
 import org.lwjgl.system.MemoryStack
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.Struct
 import org.lwjgl.system.StructBuffer
 import java.nio.IntBuffer

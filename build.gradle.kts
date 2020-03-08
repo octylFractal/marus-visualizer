@@ -36,7 +36,10 @@ dependencies {
 }
 
 tasks.withType<KotlinCompile>().configureEach {
-    kotlinOptions.freeCompilerArgs = listOf("-Xopt-in=kotlin.RequiresOptIn")
+    kotlinOptions.freeCompilerArgs = listOf(
+        "-XXLanguage:+NewInference",
+        "-Xopt-in=kotlin.RequiresOptIn"
+    )
 }
 
 application.mainClassName = "net.octyl.marus.MainKt"
