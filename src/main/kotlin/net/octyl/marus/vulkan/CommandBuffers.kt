@@ -20,6 +20,7 @@ package net.octyl.marus.vulkan
 
 import net.octyl.marus.INDICIES
 import net.octyl.marus.util.closer
+import net.octyl.marus.util.closerWithStack
 import net.octyl.marus.util.forEach
 import net.octyl.marus.util.pushStack
 import net.octyl.marus.util.structs
@@ -34,17 +35,17 @@ import net.octyl.marus.vkRenderPass
 import net.octyl.marus.vkSwapChainFramebuffers
 import net.octyl.marus.vkVertexBuffer
 import org.lwjgl.BufferUtils
+import org.lwjgl.system.MemoryStack
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkClearValue
 import org.lwjgl.vulkan.VkCommandBuffer
 import org.lwjgl.vulkan.VkCommandBufferAllocateInfo
 import org.lwjgl.vulkan.VkCommandBufferBeginInfo
 import org.lwjgl.vulkan.VkRenderPassBeginInfo
+import org.lwjgl.vulkan.VkSubmitInfo
 
 fun createCommandBuffers() {
-    closer {
-        val stack = pushStack()
-
+    closerWithStack { stack ->
         val commandBuffers = stack.mallocPointer(vkSwapChainFramebuffers.size)
         val allocInfo = VkCommandBufferAllocateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
@@ -58,7 +59,7 @@ fun createCommandBuffers() {
         val beginInfo = VkCommandBufferBeginInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
         val clearColor = VkClearValue.callocStack(stack).color {
-            it.float32().put(floatArrayOf(0.0f, 0.0f, 0.0f, 1.0f))
+            it.float32().put(floatArrayOf(0.01f, 0.01f, 0.01f, 1.0f))
         }
         val renderPassInfo = VkRenderPassBeginInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
@@ -95,5 +96,43 @@ fun createCommandBuffers() {
         vkCommandBuffers = BufferUtils.createPointerBuffer(commandBuffers.remaining())
             .put(commandBuffers)
             .flip()
+    }
+}
+
+fun beginSingleUseCmdBuffer(): VkCommandBuffer {
+    return closerWithStack { stack ->
+        val allocInfo = VkCommandBufferAllocateInfo.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
+            .level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+            .commandPool(vkCommandPool)
+            .commandBufferCount(1)
+
+        val buffer = stack.mallocPointer(1)
+        checkedCreate({ "copy command buffer" }) {
+            vkAllocateCommandBuffers(vkDevice, allocInfo, buffer)
+        }
+        val commandBuffer = VkCommandBuffer(buffer[0], vkDevice)
+
+        val beginInfo = VkCommandBufferBeginInfo.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
+            .flags(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)
+        vkBeginCommandBuffer(commandBuffer, beginInfo)
+
+        commandBuffer
+    }
+}
+
+fun endSingleUseCmdBuffer(commandBuffer: VkCommandBuffer) {
+    closerWithStack { stack ->
+        vkEndCommandBuffer(commandBuffer)
+
+        val buffers = stack.pointers(commandBuffer.address())
+        val submitInfo = VkSubmitInfo.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
+            .pCommandBuffers(buffers)
+        val queueHandle = queues.graphicsQueue!!.queueHandle!!
+        vkQueueSubmit(queueHandle, submitInfo, VK_NULL_HANDLE)
+        vkQueueWaitIdle(queueHandle)
+        vkFreeCommandBuffers(vkDevice, vkCommandPool, buffers)
     }
 }

@@ -126,7 +126,7 @@ private val UBO = UniformBufferObject.create()
 @OptIn(ExperimentalTime::class)
 fun updateUniformBuffer(image: Int) {
     val time = timer.elapsedNow().inSeconds.toFloat()
-    Matrix4f().rotate(time * Math.toRadians(90.0).toFloat(), Vector3f(0.0f, 0.0f, 1.0f))
+    Matrix4f().rotate(time * Math.toRadians(90.0).toFloat() / 2, Vector3f(0.0f, 0.0f, 1.0f))
         .copyTo(UBO.model())
     Matrix4f().lookAt(2.0f, 2.0f, 2.0f,
             0.0f, 0.0f, 0.0f,
@@ -139,5 +139,7 @@ fun updateUniformBuffer(image: Int) {
             set(1, 1, get(1, 1) * -1)
         }
         .copyTo(UBO.proj())
+    val scale = 0.25f
+    UBO.offset().y((time % 1) * scale).x((time % 1) * 2 * scale)
     vkUniformBuffers[image].copyFrom(vkDevice, memAddress(memByteBuffer(UBO)))
 }

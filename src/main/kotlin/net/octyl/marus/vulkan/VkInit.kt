@@ -20,6 +20,7 @@ package net.octyl.marus.vulkan
 
 import mu.KotlinLogging
 import net.octyl.marus.DEBUG
+import net.octyl.marus.Resources
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.forEach
 import net.octyl.marus.util.listAllElements
@@ -29,6 +30,9 @@ import net.octyl.marus.vkDebugCallback
 import net.octyl.marus.vkDevice
 import net.octyl.marus.vkImageViews
 import net.octyl.marus.vkInstance
+import net.octyl.marus.vkRectImage
+import net.octyl.marus.vkRectImageView
+import net.octyl.marus.vkRectSampler
 import net.octyl.marus.vkSwapChainImages
 import org.lwjgl.glfw.GLFWVulkan.glfwGetRequiredInstanceExtensions
 import org.lwjgl.system.MemoryUtil.memASCII
@@ -42,18 +46,23 @@ import org.lwjgl.vulkan.EXTDebugUtils.VK_EXT_DEBUG_UTILS_EXTENSION_NAME
 import org.lwjgl.vulkan.EXTDebugUtils.VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
 import org.lwjgl.vulkan.EXTDebugUtils.vkCreateDebugUtilsMessengerEXT
 import org.lwjgl.vulkan.KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
-import org.lwjgl.vulkan.VK10.*
+import org.lwjgl.vulkan.VK10.VK_FALSE
+import org.lwjgl.vulkan.VK10.VK_MAKE_VERSION
+import org.lwjgl.vulkan.VK10.VK_STRUCTURE_TYPE_APPLICATION_INFO
+import org.lwjgl.vulkan.VK10.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO
+import org.lwjgl.vulkan.VK10.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
+import org.lwjgl.vulkan.VK10.vkCreateDevice
+import org.lwjgl.vulkan.VK10.vkCreateInstance
+import org.lwjgl.vulkan.VK10.vkEnumerateInstanceLayerProperties
+import org.lwjgl.vulkan.VK10.vkGetDeviceQueue
 import org.lwjgl.vulkan.VK11.VK_API_VERSION_1_1
 import org.lwjgl.vulkan.VkApplicationInfo
-import org.lwjgl.vulkan.VkComponentMapping
 import org.lwjgl.vulkan.VkDebugUtilsMessengerCallbackDataEXT
 import org.lwjgl.vulkan.VkDebugUtilsMessengerCreateInfoEXT
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkDeviceCreateInfo
 import org.lwjgl.vulkan.VkDeviceQueueCreateInfo
 import org.lwjgl.vulkan.VkExtent2D
-import org.lwjgl.vulkan.VkImageSubresourceRange
-import org.lwjgl.vulkan.VkImageViewCreateInfo
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkInstanceCreateInfo
 import org.lwjgl.vulkan.VkLayerProperties
@@ -84,6 +93,11 @@ fun initVulkan() {
     createGraphicsPipeline()
     createFramebuffer()
     createCommandPool()
+
+    vkRectImage = Resources.getImage("textures/tile.png")
+    vkRectImageView = createImageView(vkRectImage)
+    vkRectSampler = createTextureSampler()
+
     createVertexBuffer()
     createIndexBuffer()
     createUniformBuffers()
@@ -200,6 +214,7 @@ private fun createLogicalDevice() {
             *uniqueQueues.map { it.createInfo(stack) }.toTypedArray()
         )
         val deviceFeatures = VkPhysicalDeviceFeatures.callocStack(stack)
+            .samplerAnisotropy(true)
         val deviceCreateInfo = VkDeviceCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
             .pQueueCreateInfos(queueCreateInfos)
@@ -222,38 +237,7 @@ private fun createLogicalDevice() {
 }
 
 fun createImageViews() {
-    closer {
-        val stack = pushStack()
-        val outputBuffer = stack.mallocLong(vkSwapChainImages.size)
-        val createInfo = VkImageViewCreateInfo.callocStack(stack)
-            .sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
-            .viewType(VK_IMAGE_VIEW_TYPE_2D)
-            .format(vkSwapChainFormat)
-            .components(VkComponentMapping.callocStack(stack)
-                .set(VK_COMPONENT_SWIZZLE_IDENTITY,
-                    VK_COMPONENT_SWIZZLE_IDENTITY,
-                    VK_COMPONENT_SWIZZLE_IDENTITY,
-                    VK_COMPONENT_SWIZZLE_IDENTITY))
-            .subresourceRange(VkImageSubresourceRange.callocStack(stack)
-                .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                .baseMipLevel(0)
-                .levelCount(1)
-                .baseArrayLayer(0)
-                .layerCount(1))
-
-        for (i in vkSwapChainImages.indices) {
-            createInfo.image(vkSwapChainImages[i])
-
-            checkedCreate({ "image view $i" }) {
-                vkCreateImageView(vkDevice, createInfo, null, outputBuffer)
-            }
-            // after success, advance the buffer
-            outputBuffer.position(outputBuffer.position() + 1)
-        }
-
-        outputBuffer.flip()
-        val outputArray = LongArray(vkSwapChainImages.size)
-        outputBuffer.get(outputArray)
-        vkImageViews = outputArray
+    vkImageViews = LongArray(vkSwapChainImages.size) {
+        createImageView(vkSwapChainImages[it], vkSwapChainFormat)
     }
 }

@@ -25,6 +25,7 @@ import net.octyl.marus.util.forEach
 import net.octyl.marus.util.struct.MvStructBuffer
 import net.octyl.marus.util.struct.toBuffer
 import net.octyl.marus.vulkan.BufferHandles
+import net.octyl.marus.vulkan.ImageHandles
 import net.octyl.marus.vulkan.cleanupSwapChain
 import net.octyl.marus.vulkan.drawFrame
 import net.octyl.marus.vulkan.initVulkan
@@ -41,7 +42,9 @@ import org.lwjgl.vulkan.VK10.vkDestroyCommandPool
 import org.lwjgl.vulkan.VK10.vkDestroyDescriptorSetLayout
 import org.lwjgl.vulkan.VK10.vkDestroyDevice
 import org.lwjgl.vulkan.VK10.vkDestroyFence
+import org.lwjgl.vulkan.VK10.vkDestroyImageView
 import org.lwjgl.vulkan.VK10.vkDestroyInstance
+import org.lwjgl.vulkan.VK10.vkDestroySampler
 import org.lwjgl.vulkan.VK10.vkDestroySemaphore
 import org.lwjgl.vulkan.VK10.vkDeviceWaitIdle
 import org.lwjgl.vulkan.VkDevice
@@ -74,11 +77,12 @@ lateinit var vkImagesInFlight: LongBuffer
 val DEBUG = System.getProperty("marus.debug")?.toBoolean() == true
 const val MAX_FRAMES_IN_FLIGHT = 2
 
+const val SIZE = 1f
 val VERTICES: MvStructBuffer<Vertex> = listOf(
-    Vertex.create().position(-0.5f, -0.5f).color(1.0f, 0.0f, 0.0f),
-    Vertex.create().position(0.5f, -0.5f).color(0.0f, 1.0f, 0.0f),
-    Vertex.create().position(0.5f, 0.5f).color(0.0f, 0.0f, 1.0f),
-    Vertex.create().position(-0.5f, 0.5f).color(1.0f, 0.0f, 1.0f)
+    Vertex.create().position(-SIZE, -SIZE).color(1.0f, 0.0f, 0.0f).texture(1.0f, 0.0f),
+    Vertex.create().position(SIZE, -SIZE).color(0.0f, 1.0f, 0.0f).texture(0.0f, 0.0f),
+    Vertex.create().position(SIZE, SIZE).color(0.0f, 0.0f, 1.0f).texture(0.0f, 1.0f),
+    Vertex.create().position(-SIZE, SIZE).color(1.0f, 0.0f, 1.0f).texture(1.0f, 1.0f)
 ).toBuffer(Vertex::create)
 val INDICIES: IntBuffer = BufferUtils.createIntBuffer(6).also {
     it.put(intArrayOf(0, 1, 2, 2, 3, 0)).flip()
@@ -88,6 +92,9 @@ lateinit var vkIndexBuffer: BufferHandles
 lateinit var vkUniformBuffers: List<BufferHandles>
 var vkDescriptorPool = NULL
 lateinit var vkDescriptorSets: LongBuffer
+lateinit var vkRectImage: ImageHandles
+var vkRectImageView = NULL
+var vkRectSampler = NULL
 
 var swapChainOutdated = false
 
@@ -133,6 +140,9 @@ private fun mainLoop() {
 
 private fun cleanup() {
     if (::vkDevice.isInitialized) {
+        vkDestroyImageView(vkDevice, vkRectImageView, null)
+        vkDestroySampler(vkDevice, vkRectSampler, null)
+        vkRectImage.destroy(vkDevice)
         vkDestroyDescriptorSetLayout(vkDevice, vkDescriptorSetLayout, null)
         vkVertexBuffer.destroy(vkDevice)
         vkIndexBuffer.destroy(vkDevice)

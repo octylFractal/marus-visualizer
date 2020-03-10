@@ -20,8 +20,8 @@ package net.octyl.marus.vulkan
 
 import net.octyl.marus.Resources
 import net.octyl.marus.util.byteBuffer
+import net.octyl.marus.util.closerWithStack
 import org.lwjgl.BufferUtils
-import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.system.MemoryUtil.memUTF8
@@ -60,7 +60,7 @@ fun compileGlslToSpirv(classPath: String, stage: ShaderStage): ByteBuffer {
     }
     shaderc_compile_options_set_optimization_level(options, shaderc_optimization_level_performance)
     shaderc_compile_options_set_include_callbacks(options, resolver, releaser, 0L)
-    val res = MemoryStack.stackPush().use { stack ->
+    val res = closerWithStack { stack ->
         shaderc_compile_into_spv(
             compiler, src, stage.shaderc,
             stack.UTF8(classPath), stack.UTF8("main"), options

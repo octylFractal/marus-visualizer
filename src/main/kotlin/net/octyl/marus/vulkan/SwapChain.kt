@@ -71,7 +71,7 @@ data class SwapChainDetails(
     fun pickBestFormat(): VkSurfaceFormatKHR {
         // first meeting conditions, or just first available
         val selected = formats.firstOrNull {
-            it.format() == VK_FORMAT_B8G8R8A8_UNORM &&
+            it.format() == VK_FORMAT_B8G8R8A8_SRGB &&
                 it.colorSpace() == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
         } ?: formats.first()
         LOGGER.info { "Picked format: ${selected.toReadableString()}" }

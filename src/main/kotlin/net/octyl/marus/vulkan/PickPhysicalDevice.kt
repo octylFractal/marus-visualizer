@@ -101,6 +101,10 @@ private fun scoreDevice(device: VkPhysicalDevice): Long {
             notifySkipReason("does not support the swap chain")
             return@closer 0
         }
+        if (!deviceFeatures.samplerAnisotropy()) {
+            notifySkipReason("does not support sampler anisotropy")
+            return@closer 0
+        }
         return@closer score
     }
 }

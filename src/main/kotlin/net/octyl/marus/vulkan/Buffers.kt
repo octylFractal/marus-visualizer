@@ -4,11 +4,11 @@ import net.octyl.marus.INDICIES
 import net.octyl.marus.VERTICES
 import net.octyl.marus.data.UniformBufferObject
 import net.octyl.marus.util.closer
+import net.octyl.marus.util.closerWithStack
 import net.octyl.marus.util.pushStack
 import net.octyl.marus.util.struct.memByteBuffer
 import net.octyl.marus.util.struct.sizeof
 import net.octyl.marus.util.structs
-import net.octyl.marus.vkCommandPool
 import net.octyl.marus.vkDevice
 import net.octyl.marus.vkIndexBuffer
 import net.octyl.marus.vkSwapChainImages
@@ -21,13 +21,9 @@ import org.lwjgl.system.MemoryUtil.memCopy
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkBufferCopy
 import org.lwjgl.vulkan.VkBufferCreateInfo
-import org.lwjgl.vulkan.VkCommandBuffer
-import org.lwjgl.vulkan.VkCommandBufferAllocateInfo
-import org.lwjgl.vulkan.VkCommandBufferBeginInfo
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkMemoryAllocateInfo
 import org.lwjgl.vulkan.VkMemoryRequirements
-import org.lwjgl.vulkan.VkSubmitInfo
 import java.nio.ByteBuffer
 
 fun createVertexBuffer() {
@@ -57,7 +53,7 @@ data class BufferHandles(
     val size: Long
 ) {
     fun copyFrom(device: VkDevice, address: Long) {
-        MemoryStack.stackPush().use { stack ->
+        closerWithStack { stack ->
             val data = stack.mallocPointer(1)
             vkMapMemory(device, memory, 0, size, 0, data)
             memCopy(address, data[0], size)
@@ -73,7 +69,7 @@ data class BufferHandles(
 
 private fun uploadData(data: ByteBuffer,
                        bufferUsageFlag: Int): BufferHandles {
-    MemoryStack.stackPush().use { stack ->
+    return closerWithStack { stack ->
         val size = data.remaining().toLong()
 
         val staging = createBuffer(stack,
@@ -92,7 +88,7 @@ private fun uploadData(data: ByteBuffer,
 
         staging.destroy(vkDevice)
 
-        return output
+        output
     }
 }
 
@@ -133,35 +129,12 @@ fun createBuffer(stack: MemoryStack,
 private fun copyBuffer(source: Long, dest: Long, size: Long) {
     closer {
         val stack = pushStack()
-        val allocInfo = VkCommandBufferAllocateInfo.callocStack()
-            .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
-            .level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
-            .commandPool(vkCommandPool)
-            .commandBufferCount(1)
-
-        val buffer = stack.mallocPointer(1)
-        checkedCreate({ "copy command buffer" }) {
-            vkAllocateCommandBuffers(vkDevice, allocInfo, buffer)
-        }
-        val commandBuffer = VkCommandBuffer(buffer[0], vkDevice)
-
-        val beginInfo = VkCommandBufferBeginInfo.callocStack(stack)
-            .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
-            .flags(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)
-        vkBeginCommandBuffer(commandBuffer, beginInfo)
+        val commandBuffer = beginSingleUseCmdBuffer()
 
         val copy = VkBufferCopy.callocStack(stack)
             .size(size)
         vkCmdCopyBuffer(commandBuffer, source, dest, stack.structs(VkBufferCopy::mallocStack, copy))
 
-        vkEndCommandBuffer(commandBuffer)
-
-        val submitInfo = VkSubmitInfo.callocStack(stack)
-            .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
-            .pCommandBuffers(buffer)
-        val queueHandle = queues.graphicsQueue!!.queueHandle!!
-        vkQueueSubmit(queueHandle, submitInfo, VK_NULL_HANDLE)
-        vkQueueWaitIdle(queueHandle)
-        vkFreeCommandBuffers(vkDevice, vkCommandPool, buffer)
+        endSingleUseCmdBuffer(commandBuffer)
     }
 }

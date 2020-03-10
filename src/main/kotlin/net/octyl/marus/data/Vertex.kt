@@ -17,8 +17,9 @@ class Vertex(container: ByteBuffer) : MvStruct<Vertex>(container, Vertex) {
     companion object : MvStructType<Vertex> {
         val POSITION = Member("position", Vec2f)
         val COLOR = Member("color", Vec3f)
+        val TEXTURE = Member("texture", Vec2f)
 
-        override val layout = Layout(POSITION, COLOR)
+        override val layout = Layout(POSITION, COLOR, TEXTURE)
 
         override fun create(container: ByteBuffer) = Vertex(container)
 
@@ -29,7 +30,7 @@ class Vertex(container: ByteBuffer) : MvStruct<Vertex>(container, Vertex) {
                 .inputRate(VK_VERTEX_INPUT_RATE_VERTEX)
 
         val attributeDescription: VkVertexInputAttributeDescription.Buffer =
-            VkVertexInputAttributeDescription.create(2)
+            VkVertexInputAttributeDescription.create(3)
                 .apply(0) {
                     // position first
                     it.binding(0)
@@ -43,6 +44,13 @@ class Vertex(container: ByteBuffer) : MvStruct<Vertex>(container, Vertex) {
                         .location(1)
                         .format(VK_FORMAT_R32G32B32_SFLOAT)
                         .offset(COLOR.offsetIn(layout))
+                }
+                .apply(2) {
+                    // texture next
+                    it.binding(0)
+                        .location(2)
+                        .format(VK_FORMAT_R32G32_SFLOAT)
+                        .offset(TEXTURE.offsetIn(layout))
                 }
     }
 
@@ -62,5 +70,14 @@ class Vertex(container: ByteBuffer) : MvStruct<Vertex>(container, Vertex) {
     fun color(x: Float, y: Float, z: Float) = apply {
         // this writes through to our buffer
         color().set(x, y, z)
+    }
+
+    fun texture() = TEXTURE.get()
+
+    fun texture(value: Vec2f) = TEXTURE.set(value)
+
+    fun texture(x: Float, y: Float) = apply {
+        // this writes through to our buffer
+        texture().set(x, y)
     }
 }
