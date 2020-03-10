@@ -24,6 +24,7 @@ import net.octyl.marus.util.LineOutputStream
 import net.octyl.marus.util.forEach
 import net.octyl.marus.util.struct.MvStructBuffer
 import net.octyl.marus.util.struct.toBuffer
+import net.octyl.marus.util.toBuffer
 import net.octyl.marus.vulkan.BufferHandles
 import net.octyl.marus.vulkan.ImageHandles
 import net.octyl.marus.vulkan.cleanupSwapChain
@@ -79,14 +80,20 @@ const val MAX_FRAMES_IN_FLIGHT = 2
 
 const val SIZE = 1f
 val VERTICES: MvStructBuffer<Vertex> = listOf(
-    Vertex.create().position(-SIZE, -SIZE).color(1.0f, 0.0f, 0.0f).texture(1.0f, 0.0f),
-    Vertex.create().position(SIZE, -SIZE).color(0.0f, 1.0f, 0.0f).texture(0.0f, 0.0f),
-    Vertex.create().position(SIZE, SIZE).color(0.0f, 0.0f, 1.0f).texture(0.0f, 1.0f),
-    Vertex.create().position(-SIZE, SIZE).color(1.0f, 0.0f, 1.0f).texture(1.0f, 1.0f)
+    Vertex.create().position(-SIZE, -SIZE, 0.0f).color(1.0f, 0.0f, 0.0f).texture(1.0f, 0.0f),
+    Vertex.create().position(SIZE, -SIZE, 0.0f).color(0.0f, 1.0f, 0.0f).texture(0.0f, 0.0f),
+    Vertex.create().position(SIZE, SIZE, 0.0f).color(0.0f, 0.0f, 1.0f).texture(0.0f, 1.0f),
+    Vertex.create().position(-SIZE, SIZE, 0.0f).color(1.0f, 0.0f, 1.0f).texture(1.0f, 1.0f),
+
+    Vertex.create().position(-SIZE, -SIZE, -0.5f).color(1.0f, 0.0f, 0.0f).texture(1.0f, 0.0f),
+    Vertex.create().position(SIZE, -SIZE, -0.5f).color(0.0f, 1.0f, 0.0f).texture(0.0f, 0.0f),
+    Vertex.create().position(SIZE, SIZE, -0.5f).color(0.0f, 0.0f, 1.0f).texture(0.0f, 1.0f),
+    Vertex.create().position(-SIZE, SIZE, -0.5f).color(1.0f, 0.0f, 1.0f).texture(1.0f, 1.0f)
 ).toBuffer(Vertex::create)
-val INDICIES: IntBuffer = BufferUtils.createIntBuffer(6).also {
-    it.put(intArrayOf(0, 1, 2, 2, 3, 0)).flip()
-}
+val INDICIES: IntBuffer = intArrayOf(
+    0, 1, 2, 2, 3, 0,
+    4, 5, 6, 6, 7, 4
+).toBuffer(BufferUtils::createIntBuffer)
 lateinit var vkVertexBuffer: BufferHandles
 lateinit var vkIndexBuffer: BufferHandles
 lateinit var vkUniformBuffers: List<BufferHandles>
@@ -95,6 +102,8 @@ lateinit var vkDescriptorSets: LongBuffer
 lateinit var vkRectImage: ImageHandles
 var vkRectImageView = NULL
 var vkRectSampler = NULL
+lateinit var vkDepthImage: ImageHandles
+var vkDepthImageView = NULL
 
 var swapChainOutdated = false
 

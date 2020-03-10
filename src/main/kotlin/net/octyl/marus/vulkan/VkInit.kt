@@ -27,6 +27,8 @@ import net.octyl.marus.util.listAllElements
 import net.octyl.marus.util.pushStack
 import net.octyl.marus.util.structs
 import net.octyl.marus.vkDebugCallback
+import net.octyl.marus.vkDepthImage
+import net.octyl.marus.vkDepthImageView
 import net.octyl.marus.vkDevice
 import net.octyl.marus.vkImageViews
 import net.octyl.marus.vkInstance
@@ -46,15 +48,7 @@ import org.lwjgl.vulkan.EXTDebugUtils.VK_EXT_DEBUG_UTILS_EXTENSION_NAME
 import org.lwjgl.vulkan.EXTDebugUtils.VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT
 import org.lwjgl.vulkan.EXTDebugUtils.vkCreateDebugUtilsMessengerEXT
 import org.lwjgl.vulkan.KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
-import org.lwjgl.vulkan.VK10.VK_FALSE
-import org.lwjgl.vulkan.VK10.VK_MAKE_VERSION
-import org.lwjgl.vulkan.VK10.VK_STRUCTURE_TYPE_APPLICATION_INFO
-import org.lwjgl.vulkan.VK10.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO
-import org.lwjgl.vulkan.VK10.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
-import org.lwjgl.vulkan.VK10.vkCreateDevice
-import org.lwjgl.vulkan.VK10.vkCreateInstance
-import org.lwjgl.vulkan.VK10.vkEnumerateInstanceLayerProperties
-import org.lwjgl.vulkan.VK10.vkGetDeviceQueue
+import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VK11.VK_API_VERSION_1_1
 import org.lwjgl.vulkan.VkApplicationInfo
 import org.lwjgl.vulkan.VkDebugUtilsMessengerCallbackDataEXT
@@ -78,6 +72,7 @@ lateinit var vkPhysicalDevice: VkPhysicalDevice
 var vkSwapChainFormat by Delegates.notNull<Int>()
 lateinit var vkSwapChainExtent: VkExtent2D
 lateinit var queues: Queues
+var vkDepthFormat by Delegates.notNull<Int>()
 
 fun initVulkan() {
     createInstance()
@@ -95,7 +90,7 @@ fun initVulkan() {
     createCommandPool()
 
     vkRectImage = Resources.getImage("textures/tile.png")
-    vkRectImageView = createImageView(vkRectImage)
+    vkRectImageView = createImageView(vkRectImage, aspect = VK_IMAGE_ASPECT_COLOR_BIT)
     vkRectSampler = createTextureSampler()
 
     createVertexBuffer()
@@ -238,6 +233,18 @@ private fun createLogicalDevice() {
 
 fun createImageViews() {
     vkImageViews = LongArray(vkSwapChainImages.size) {
-        createImageView(vkSwapChainImages[it], vkSwapChainFormat)
+        createImageView(vkSwapChainImages[it], vkSwapChainFormat, aspect = VK_IMAGE_ASPECT_COLOR_BIT)
     }
+
+    createDepthResources()
+}
+
+private fun createDepthResources() {
+    vkDepthFormat = vkPhysicalDevice.findDepthFormat()
+    vkDepthImage = createImage(vkSwapChainExtent.width(), vkSwapChainExtent.height(),
+        format = vkDepthFormat,
+        tiling = VK_IMAGE_TILING_OPTIMAL,
+        usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+    vkDepthImageView = createImageView(vkDepthImage, aspect = VK_IMAGE_ASPECT_DEPTH_BIT)
 }

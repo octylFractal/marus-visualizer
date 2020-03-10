@@ -15,7 +15,7 @@ import java.nio.ByteBuffer
 
 class Vertex(container: ByteBuffer) : MvStruct<Vertex>(container, Vertex) {
     companion object : MvStructType<Vertex> {
-        val POSITION = Member("position", Vec2f)
+        val POSITION = Member("position", Vec3f)
         val COLOR = Member("color", Vec3f)
         val TEXTURE = Member("texture", Vec2f)
 
@@ -35,7 +35,7 @@ class Vertex(container: ByteBuffer) : MvStruct<Vertex>(container, Vertex) {
                     // position first
                     it.binding(0)
                         .location(0)
-                        .format(VK_FORMAT_R32G32_SFLOAT)
+                        .format(VK_FORMAT_R32G32B32_SFLOAT)
                         .offset(POSITION.offsetIn(layout))
                 }
                 .apply(1) {
@@ -56,11 +56,11 @@ class Vertex(container: ByteBuffer) : MvStruct<Vertex>(container, Vertex) {
 
     fun position() = POSITION.get()
 
-    fun position(value: Vec2f) = POSITION.set(value)
+    fun position(value: Vec3f) = POSITION.set(value)
 
-    fun position(x: Float, y: Float) = apply {
+    fun position(x: Float, y: Float, z: Float) = apply {
         // this writes through to our buffer
-        position().set(x, y)
+        position().set(x, y, z)
     }
 
     fun color() = COLOR.get()

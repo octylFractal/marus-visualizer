@@ -27,6 +27,8 @@ import net.octyl.marus.util.listAllElements
 import net.octyl.marus.util.pushStack
 import net.octyl.marus.vkCommandBuffers
 import net.octyl.marus.vkCommandPool
+import net.octyl.marus.vkDepthImage
+import net.octyl.marus.vkDepthImageView
 import net.octyl.marus.vkDescriptorPool
 import net.octyl.marus.vkDevice
 import net.octyl.marus.vkImageViews
@@ -188,6 +190,9 @@ fun cleanupSwapChain() {
     for (image in vkImageViews) {
         vkDestroyImageView(vkDevice, image, null)
     }
+
+    vkDepthImage.destroy(vkDevice)
+    vkDestroyImageView(vkDevice, vkDepthImageView, null)
 
     vkDestroySwapchainKHR(vkDevice, vkSwapChain, null)
 

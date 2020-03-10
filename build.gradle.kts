@@ -22,6 +22,7 @@ inciseBlue {
         addDependency("shaderc")
         addDependency("jemalloc")
         addDependency("stb")
+        addDependency("assimp")
     }
 }
 

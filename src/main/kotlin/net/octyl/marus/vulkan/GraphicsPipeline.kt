@@ -35,6 +35,7 @@ import org.lwjgl.vulkan.VkGraphicsPipelineCreateInfo
 import org.lwjgl.vulkan.VkOffset2D
 import org.lwjgl.vulkan.VkPipelineColorBlendAttachmentState
 import org.lwjgl.vulkan.VkPipelineColorBlendStateCreateInfo
+import org.lwjgl.vulkan.VkPipelineDepthStencilStateCreateInfo
 import org.lwjgl.vulkan.VkPipelineInputAssemblyStateCreateInfo
 import org.lwjgl.vulkan.VkPipelineLayoutCreateInfo
 import org.lwjgl.vulkan.VkPipelineMultisampleStateCreateInfo
@@ -63,9 +64,22 @@ fun createRenderPass() {
         val colorAttachmentRef = VkAttachmentReference.callocStack(stack)
             .attachment(0)
             .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+        val depthAttachment = VkAttachmentDescription.callocStack(stack)
+            .format(vkDepthFormat)
+            .samples(VK_SAMPLE_COUNT_1_BIT)
+            .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            .storeOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
+            .stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
+            .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
+            .finalLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+        val depthAttachmentRef = VkAttachmentReference.callocStack(stack)
+            .attachment(1)
+            .layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
         val subpass = VkSubpassDescription.callocStack(stack)
             .colorAttachmentCount(1)
             .pColorAttachments(stack.structs(VkAttachmentReference::mallocStack, colorAttachmentRef))
+            .pDepthStencilAttachment(depthAttachmentRef)
         val dependency = VkSubpassDependency.callocStack(stack)
             .srcSubpass(VK_SUBPASS_EXTERNAL)
             .dstSubpass(0)
@@ -75,7 +89,7 @@ fun createRenderPass() {
             .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
         val renderPassInfo = VkRenderPassCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO)
-            .pAttachments(stack.structs(VkAttachmentDescription::mallocStack, colorAttachment))
+            .pAttachments(stack.structs(VkAttachmentDescription::mallocStack, colorAttachment, depthAttachment))
             .pSubpasses(stack.structs(VkSubpassDescription::mallocStack, subpass))
             .pDependencies(stack.structs(VkSubpassDependency::mallocStack, dependency))
 
@@ -155,6 +169,11 @@ fun createGraphicsPipeline() {
             .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
             .logicOpEnable(false)
             .pAttachments(stack.structs(VkPipelineColorBlendAttachmentState::mallocStack, colorBlendAttachment))
+        val depthStencil = VkPipelineDepthStencilStateCreateInfo.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO)
+            .depthTestEnable(true)
+            .depthWriteEnable(true)
+            .depthCompareOp(VK_COMPARE_OP_LESS)
 
         createPipelineLayout()
 
@@ -167,6 +186,7 @@ fun createGraphicsPipeline() {
             .pRasterizationState(rasterizer)
             .pMultisampleState(multiSampling)
             .pColorBlendState(colorBlending)
+            .pDepthStencilState(depthStencil)
             .layout(vkPipelineLayout)
             .renderPass(vkRenderPass)
             .subpass(0)

@@ -6,11 +6,13 @@ import net.octyl.marus.vkDevice
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkBufferImageCopy
 import org.lwjgl.vulkan.VkDevice
+import org.lwjgl.vulkan.VkFormatProperties
 import org.lwjgl.vulkan.VkImageCreateInfo
 import org.lwjgl.vulkan.VkImageMemoryBarrier
 import org.lwjgl.vulkan.VkImageViewCreateInfo
 import org.lwjgl.vulkan.VkMemoryAllocateInfo
 import org.lwjgl.vulkan.VkMemoryRequirements
+import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkSamplerCreateInfo
 
 data class ImageHandles(
@@ -140,10 +142,10 @@ fun copyBufferToImage(bufferHandles: BufferHandles, image: ImageHandles) {
     }
 }
 
-fun createImageView(image: ImageHandles) =
-    createImageView(image.image, image.format)
+fun createImageView(image: ImageHandles, aspect: Int) =
+    createImageView(image.image, image.format, aspect)
 
-fun createImageView(image: Long, format: Int): Long {
+fun createImageView(image: Long, format: Int, aspect: Int): Long {
     return closerWithStack { stack ->
         val viewInfo = VkImageViewCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
@@ -151,7 +153,7 @@ fun createImageView(image: Long, format: Int): Long {
             .viewType(VK_IMAGE_VIEW_TYPE_2D)
             .format(format)
             .subresourceRange {
-                it.aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                it.aspectMask(aspect)
                     .baseMipLevel(0)
                     .levelCount(1)
                     .baseArrayLayer(0)
@@ -187,5 +189,35 @@ fun createTextureSampler(): Long {
             vkCreateSampler(vkDevice, samplerInfo, null, sampler)
         }
         sampler[0]
+    }
+}
+
+fun VkPhysicalDevice.findSupportedFormat(candidates: IntArray, tiling: Int, features: Int): Int {
+    return closerWithStack { stack ->
+        for (candidate in candidates) {
+            val props = VkFormatProperties.callocStack(stack)
+            vkGetPhysicalDeviceFormatProperties(this@findSupportedFormat, candidate, props)
+
+            if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures() and features) == features) {
+                return@closerWithStack candidate
+            } else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures() and features) == features) {
+                return@closerWithStack candidate
+            }
+        }
+
+        error("failed to find a supported format from ${candidates.contentToString()}")
+    }
+}
+
+fun VkPhysicalDevice.findDepthFormat(): Int = findSupportedFormat(
+    intArrayOf(VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT),
+    tiling = VK_IMAGE_TILING_OPTIMAL,
+    features = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+)
+
+fun hasStencilComponent(format: Int): Boolean {
+    return when (format) {
+        VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT -> true
+        else -> false
     }
 }

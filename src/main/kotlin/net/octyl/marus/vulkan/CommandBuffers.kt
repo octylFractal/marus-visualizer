@@ -19,11 +19,8 @@
 package net.octyl.marus.vulkan
 
 import net.octyl.marus.INDICIES
-import net.octyl.marus.util.closer
 import net.octyl.marus.util.closerWithStack
 import net.octyl.marus.util.forEach
-import net.octyl.marus.util.pushStack
-import net.octyl.marus.util.structs
 import net.octyl.marus.vkCommandBuffers
 import net.octyl.marus.vkCommandPool
 import net.octyl.marus.vkDescriptorSets
@@ -35,7 +32,6 @@ import net.octyl.marus.vkRenderPass
 import net.octyl.marus.vkSwapChainFramebuffers
 import net.octyl.marus.vkVertexBuffer
 import org.lwjgl.BufferUtils
-import org.lwjgl.system.MemoryStack
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkClearValue
 import org.lwjgl.vulkan.VkCommandBuffer
@@ -58,9 +54,17 @@ fun createCommandBuffers() {
 
         val beginInfo = VkCommandBufferBeginInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
-        val clearColor = VkClearValue.callocStack(stack).color {
-            it.float32().put(floatArrayOf(0.01f, 0.01f, 0.01f, 1.0f))
-        }
+        val clearColor = VkClearValue.callocStack(2, stack)
+            .apply(0) {
+                it.color { color ->
+                    color.float32().put(floatArrayOf(0.01f, 0.01f, 0.01f, 1.0f))
+                }
+            }
+            .apply(1) {
+                it.depthStencil { depthStencil ->
+                    depthStencil.set(1.0f, 0)
+                }
+            }
         val renderPassInfo = VkRenderPassBeginInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
             .renderPass(vkRenderPass)
@@ -68,7 +72,7 @@ fun createCommandBuffers() {
                 it.offset { offset -> offset.set(0, 0) }
                 it.extent(vkSwapChainExtent)
             }
-            .pClearValues(stack.structs(VkClearValue::mallocStack, clearColor))
+            .pClearValues(clearColor)
         commandBuffers.forEach {
             val commandBuffer = VkCommandBuffer(get(it), vkDevice)
             checkedAction({ "begin command buffer $it" }) {

@@ -22,6 +22,7 @@ import org.lwjgl.BufferUtils
 import org.lwjgl.system.CustomBuffer
 import org.lwjgl.system.MemoryUtil.memCopy
 import java.nio.Buffer
+import java.nio.IntBuffer
 import java.nio.LongBuffer
 
 /**
@@ -63,3 +64,6 @@ fun LongBuffer.exportAsDirect(): LongBuffer = BufferUtils.createLongBuffer(remai
 }
 
 fun Buffer.incrementPosition(): Buffer = position(position() + 1)
+
+inline fun IntArray.toBuffer(allocator: (capacity: Int) -> IntBuffer): IntBuffer =
+    allocator(size).put(this).flip()
