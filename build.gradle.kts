@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     application
     id("com.techshroom.incise-blue") version "0.5.7"
-    kotlin("jvm") version "1.3.70"
+    kotlin("jvm") version "1.3.71"
 }
 
 inciseBlue {

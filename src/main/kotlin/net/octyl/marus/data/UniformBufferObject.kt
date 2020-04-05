@@ -11,9 +11,8 @@ class UniformBufferObject(container: ByteBuffer) : MvStruct<UniformBufferObject>
         val MODEL = Member("model", Mat4f)
         val VIEW = Member("view", Mat4f)
         val PROJ = Member("proj", Mat4f)
-        val OFFSET = Member("offset", Vec2f)
 
-        override val layout = Layout(MODEL, VIEW, PROJ, OFFSET)
+        override val layout = Layout(MODEL, VIEW, PROJ)
 
         override fun create(container: ByteBuffer) = UniformBufferObject(container)
     }
@@ -29,8 +28,4 @@ class UniformBufferObject(container: ByteBuffer) : MvStruct<UniformBufferObject>
     fun proj() = PROJ.get()
 
     fun proj(value: Mat4f) = PROJ.set(value)
-
-    fun offset() = OFFSET.get()
-
-    fun offset(value: Vec2f) = OFFSET.set(value)
 }

@@ -78,22 +78,11 @@ lateinit var vkImagesInFlight: LongBuffer
 val DEBUG = System.getProperty("marus.debug")?.toBoolean() == true
 const val MAX_FRAMES_IN_FLIGHT = 2
 
-const val SIZE = 1f
-val VERTICES: MvStructBuffer<Vertex> = listOf(
-    Vertex.create().position(-SIZE, -SIZE, 0.0f).color(1.0f, 0.0f, 0.0f).texture(1.0f, 0.0f),
-    Vertex.create().position(SIZE, -SIZE, 0.0f).color(0.0f, 1.0f, 0.0f).texture(0.0f, 0.0f),
-    Vertex.create().position(SIZE, SIZE, 0.0f).color(0.0f, 0.0f, 1.0f).texture(0.0f, 1.0f),
-    Vertex.create().position(-SIZE, SIZE, 0.0f).color(1.0f, 0.0f, 1.0f).texture(1.0f, 1.0f),
-
-    Vertex.create().position(-SIZE, -SIZE, -0.5f).color(1.0f, 0.0f, 0.0f).texture(1.0f, 0.0f),
-    Vertex.create().position(SIZE, -SIZE, -0.5f).color(0.0f, 1.0f, 0.0f).texture(0.0f, 0.0f),
-    Vertex.create().position(SIZE, SIZE, -0.5f).color(0.0f, 0.0f, 1.0f).texture(0.0f, 1.0f),
-    Vertex.create().position(-SIZE, SIZE, -0.5f).color(1.0f, 0.0f, 1.0f).texture(1.0f, 1.0f)
-).toBuffer(Vertex::create)
-val INDICIES: IntBuffer = intArrayOf(
-    0, 1, 2, 2, 3, 0,
-    4, 5, 6, 6, 7, 4
-).toBuffer(BufferUtils::createIntBuffer)
+val model = Resources.getScene("models/chalet.obj")
+val realRoot = model.root.nodesWithMeshes().first()
+val VERTICES: MvStructBuffer<Vertex> = realRoot.meshes.first().vertices.toBuffer(Vertex::create)
+val INDICIES: IntBuffer = realRoot.meshes.first().faces.flatMap { it.indicies }.toIntArray()
+    .toBuffer(BufferUtils::createIntBuffer)
 lateinit var vkVertexBuffer: BufferHandles
 lateinit var vkIndexBuffer: BufferHandles
 lateinit var vkUniformBuffers: List<BufferHandles>
@@ -175,7 +164,9 @@ private fun cleanup() {
         vkDestroyDevice(vkDevice, null)
     }
     vkDestroySurfaceKHR(vkInstance, vkSurface, null)
-    vkDestroyDebugUtilsMessengerEXT(vkInstance, vkDebugCallback, null)
+    if (vkDebugCallback != NULL) {
+        vkDestroyDebugUtilsMessengerEXT(vkInstance, vkDebugCallback, null)
+    }
     vkDestroyInstance(vkInstance, null)
     glfwDestroyWindow(window)
     glfwTerminate()

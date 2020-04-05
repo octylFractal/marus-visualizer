@@ -18,6 +18,10 @@
 
 package net.octyl.marus
 
+import net.octyl.marus.data.obj.Importer
+import net.octyl.marus.data.obj.Scene
+import net.octyl.marus.util.StdAllocator
+import net.octyl.marus.util.assimp.io.assImpFileIO
 import net.octyl.marus.util.byteBuffer
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.pushStack
@@ -33,11 +37,21 @@ import org.lwjgl.vulkan.VK10.*
 import java.io.InputStream
 
 object Resources {
+
+    private val aiFileIo = assImpFileIO { name ->
+        byteBuffer(StdAllocator.APP_MANAGED) { getResource(name) }
+    }
+    private val importer = Importer(aiFileIo, StdAllocator.JVM_MANAGED)
+
     /**
      * Retrieve the resource, relative to this class.
      */
     fun getResource(path: String): InputStream {
         return javaClass.getResourceAsStream(path)
+    }
+
+    fun getScene(path: String): Scene {
+        return importer.import(path)
     }
 
     fun getImage(path: String): ImageHandles {

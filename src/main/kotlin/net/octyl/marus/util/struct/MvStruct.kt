@@ -1,5 +1,6 @@
 package net.octyl.marus.util.struct
 
+import net.octyl.marus.util.Allocator
 import org.lwjgl.BufferUtils
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil.memAddress
@@ -166,4 +167,10 @@ fun <S : MvStruct<S>> Collection<S>.toBuffer(allocator: (capacity: Int) -> MvStr
     }
 
 fun sizeof(structType: MvStructType<*>) = structType.bytes
+
+fun <S : MvStruct<S>> Allocator.callocStruct(structType: MvStructType<S>): S =
+    structType.create(calloc(sizeof(structType)))
+
+fun <S : MvStruct<S>> Allocator.mallocStruct(structType: MvStructType<S>): S =
+    structType.create(malloc(sizeof(structType)))
 

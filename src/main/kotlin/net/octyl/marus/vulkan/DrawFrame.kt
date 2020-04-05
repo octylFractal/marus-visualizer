@@ -122,10 +122,19 @@ fun drawFrame() {
 @OptIn(ExperimentalTime::class)
 private val timer = TimeSource.Monotonic.markNow()
 private val UBO = UniformBufferObject.create()
+@OptIn(ExperimentalTime::class)
+private var lastTime = timer.elapsedNow().inSeconds.toFloat()
+private var counter = 0
 
 @OptIn(ExperimentalTime::class)
 fun updateUniformBuffer(image: Int) {
     val time = timer.elapsedNow().inSeconds.toFloat()
+    counter++
+    if (time - lastTime > 1.0) {
+        println("FPS: ${counter / (time - lastTime)}")
+        lastTime = time
+        counter = 0
+    }
     Matrix4f().rotate(time * Math.toRadians(90.0).toFloat() / 2, Vector3f(0.0f, 0.0f, 1.0f))
         .copyTo(UBO.model())
     Matrix4f().lookAt(2.0f, 2.0f, 2.0f,
@@ -139,7 +148,5 @@ fun updateUniformBuffer(image: Int) {
             set(1, 1, get(1, 1) * -1)
         }
         .copyTo(UBO.proj())
-    val scale = 0.25f
-    UBO.offset().y((time % 1) * scale).x((time % 1) * 2 * scale)
     vkUniformBuffers[image].copyFrom(vkDevice, memAddress(memByteBuffer(UBO)))
 }

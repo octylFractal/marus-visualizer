@@ -18,18 +18,29 @@
 
 package net.octyl.marus.util
 
-import org.lwjgl.BufferUtils
-import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
+import java.nio.channels.Channels
 
-fun InputStream.toByteBuffer(): ByteBuffer {
-    val cap = ByteArrayOutputStream()
-    copyTo(cap)
-    val buffer = BufferUtils.createByteBuffer(cap.size())
-    buffer.put(cap.toByteArray())
-    buffer.flip()
-    return buffer
+fun InputStream.toByteBuffer(allocator: Allocator = StdAllocator.JVM_MANAGED): ByteBuffer {
+    val channel = Channels.newChannel(this)
+    var buffer = allocator.malloc(4096)
+    while (channel.isOpen) {
+        val read = channel.read(buffer)
+        if (read == -1) {
+            break
+        }
+        if (buffer.remaining() == 0) {
+            // grow by cap / 2
+            val grow = (buffer.capacity() ushr 1)
+            buffer = allocator.realloc(buffer, buffer.capacity() + grow)
+        }
+    }
+    return allocator.realloc(buffer, buffer.limit()).flip()
 }
 
-inline fun byteBuffer(stream: () -> InputStream) = stream().use { it.toByteBuffer() }
+inline fun byteBuffer(
+    allocator: Allocator = StdAllocator.JVM_MANAGED,
+    stream: () -> InputStream
+) = stream().use { it.toByteBuffer(allocator) }
+

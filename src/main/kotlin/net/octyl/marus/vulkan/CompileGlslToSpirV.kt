@@ -19,6 +19,7 @@
 package net.octyl.marus.vulkan
 
 import net.octyl.marus.Resources
+import net.octyl.marus.util.StdAllocator
 import net.octyl.marus.util.byteBuffer
 import net.octyl.marus.util.closerWithStack
 import org.lwjgl.BufferUtils
@@ -29,38 +30,35 @@ import org.lwjgl.util.shaderc.Shaderc.*
 import org.lwjgl.util.shaderc.ShadercIncludeResolve
 import org.lwjgl.util.shaderc.ShadercIncludeResult
 import org.lwjgl.util.shaderc.ShadercIncludeResultRelease
-import org.lwjgl.vulkan.NVRayTracing.VK_SHADER_STAGE_ANY_HIT_BIT_NV
-import org.lwjgl.vulkan.NVRayTracing.VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV
-import org.lwjgl.vulkan.NVRayTracing.VK_SHADER_STAGE_MISS_BIT_NV
-import org.lwjgl.vulkan.NVRayTracing.VK_SHADER_STAGE_RAYGEN_BIT_NV
-import org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_FRAGMENT_BIT
-import org.lwjgl.vulkan.VK10.VK_SHADER_STAGE_VERTEX_BIT
 import java.io.IOException
 import java.nio.ByteBuffer
 
 fun compileGlslToSpirv(classPath: String, stage: ShaderStage): ByteBuffer {
-    val src: ByteBuffer = byteBuffer { Resources.getResource(classPath) }
+    val src: ByteBuffer = byteBuffer(StdAllocator.APP_MANAGED) { Resources.getResource(classPath) }
     val compiler: Long = shaderc_compiler_initialize()
     val options: Long = shaderc_compile_options_initialize()
     val resolver = ShadercIncludeResolve.create { _, requested_source, _, _, _ ->
         val res: ShadercIncludeResult = ShadercIncludeResult.calloc()
         try {
             val source = classPath.substring(0, classPath.lastIndexOf('/')) + "/" + memUTF8(requested_source)
-            res.content(byteBuffer { Resources.getResource(source) })
+            res.content(byteBuffer(StdAllocator.APP_MANAGED) { Resources.getResource(source) })
             res.source_name(memUTF8(source))
             res.address()
         } catch (e: IOException) {
-            throw AssertionError("Failed to resolve include: $src")
+            res.free()
+            throw AssertionError("Failed to resolve include: $requested_source")
         }
     }
     val releaser = ShadercIncludeResultRelease.create { _, include_result ->
         val result = ShadercIncludeResult.create(include_result)
+        memFree(result.content())
         memFree(result.source_name())
         result.free()
     }
     shaderc_compile_options_set_optimization_level(options, shaderc_optimization_level_performance)
     shaderc_compile_options_set_include_callbacks(options, resolver, releaser, 0L)
     val res = closerWithStack { stack ->
+        register(src) { memFree(it) }
         shaderc_compile_into_spv(
             compiler, src, stage.shaderc,
             stack.UTF8(classPath), stack.UTF8("main"), options
@@ -80,16 +78,4 @@ fun compileGlslToSpirv(classPath: String, stage: ShaderStage): ByteBuffer {
     releaser.free()
     resolver.free()
     return resultBytes
-}
-
-private fun vulkanStageToShadercKind(stage: Int): Int {
-    return when (stage) {
-        VK_SHADER_STAGE_VERTEX_BIT -> shaderc_vertex_shader
-        VK_SHADER_STAGE_FRAGMENT_BIT -> shaderc_fragment_shader
-        VK_SHADER_STAGE_RAYGEN_BIT_NV -> shaderc_raygen_shader
-        VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV -> shaderc_closesthit_shader
-        VK_SHADER_STAGE_MISS_BIT_NV -> shaderc_miss_shader
-        VK_SHADER_STAGE_ANY_HIT_BIT_NV -> shaderc_anyhit_shader
-        else -> throw IllegalArgumentException("Stage: $stage")
-    }
 }

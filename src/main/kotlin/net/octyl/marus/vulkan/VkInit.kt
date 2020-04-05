@@ -21,6 +21,7 @@ package net.octyl.marus.vulkan
 import mu.KotlinLogging
 import net.octyl.marus.DEBUG
 import net.octyl.marus.Resources
+import net.octyl.marus.data.obj.Importer
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.forEach
 import net.octyl.marus.util.listAllElements
@@ -89,7 +90,7 @@ fun initVulkan() {
     createFramebuffer()
     createCommandPool()
 
-    vkRectImage = Resources.getImage("textures/tile.png")
+    vkRectImage = Resources.getImage("textures/chalet.jpg")
     vkRectImageView = createImageView(vkRectImage, aspect = VK_IMAGE_ASPECT_COLOR_BIT)
     vkRectSampler = createTextureSampler()
 
