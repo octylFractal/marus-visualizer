@@ -32,7 +32,8 @@ data class ImageHandles(
 
 fun createImage(
     width: Int, height: Int, format: Int, tiling: Int, usageFlags: Int, properties: Int,
-    mipLevels: Int = 1
+    mipLevels: Int = 1,
+    sampleCount: Int = VK_SAMPLE_COUNT_1_BIT
 ): ImageHandles {
     return closerWithStack { stack ->
         val imageInfo = VkImageCreateInfo.callocStack(stack)
@@ -50,7 +51,7 @@ fun createImage(
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             .usage(usageFlags)
             .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
-            .samples(VK_SAMPLE_COUNT_1_BIT)
+            .samples(sampleCount)
 
         val image = stack.mallocLong(1)
         checkedCreate({ "image" }) {

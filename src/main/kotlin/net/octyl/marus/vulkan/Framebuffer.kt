@@ -21,6 +21,7 @@ package net.octyl.marus.vulkan
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.forEach
 import net.octyl.marus.util.pushStack
+import net.octyl.marus.vkColorImageView
 import net.octyl.marus.vkDepthImageView
 import net.octyl.marus.vkDevice
 import net.octyl.marus.vkImageViews
@@ -35,7 +36,7 @@ fun createFramebuffer() {
         val stack = pushStack()
         val framebuffers = stack.mallocLong(vkImageViews.size)
         framebuffers.forEach {
-            val attachments = stack.longs(vkImageViews[it], vkDepthImageView)
+            val attachments = stack.longs(vkColorImageView, vkDepthImageView, vkImageViews[it])
 
             val framebufferInfo = VkFramebufferCreateInfo.callocStack(stack)
                 .sType(VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO)

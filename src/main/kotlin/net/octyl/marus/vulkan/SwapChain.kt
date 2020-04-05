@@ -25,6 +25,8 @@ import net.octyl.marus.util.asSequence
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.listAllElements
 import net.octyl.marus.util.pushStack
+import net.octyl.marus.vkColorImage
+import net.octyl.marus.vkColorImageView
 import net.octyl.marus.vkCommandBuffers
 import net.octyl.marus.vkCommandPool
 import net.octyl.marus.vkDepthImage
@@ -193,6 +195,9 @@ fun cleanupSwapChain() {
 
     vkDepthImage.destroy(vkDevice)
     vkDestroyImageView(vkDevice, vkDepthImageView, null)
+
+    vkColorImage.destroy(vkDevice)
+    vkDestroyImageView(vkDevice, vkColorImageView, null)
 
     vkDestroySwapchainKHR(vkDevice, vkSwapChain, null)
 

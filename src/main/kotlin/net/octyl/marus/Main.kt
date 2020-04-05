@@ -91,10 +91,14 @@ lateinit var vkDescriptorSets: LongBuffer
 lateinit var vkRectImage: ImageHandles
 var vkRectImageView = NULL
 var vkRectSampler = NULL
+lateinit var vkColorImage: ImageHandles
+var vkColorImageView = NULL
 lateinit var vkDepthImage: ImageHandles
 var vkDepthImageView = NULL
 
 var swapChainOutdated = false
+
+const val TITLE = "marus visualizer"
 
 fun main() {
     Configuration.DEBUG_STREAM.set(PrintStream(LineOutputStream(LoggerFactory.getLogger("LWJGL")::info)))
@@ -116,7 +120,7 @@ private fun initWindow() {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE)
 
-    window = glfwCreateWindow(800, 600, "Test window!", NULL, NULL)
+    window = glfwCreateWindow(800, 600, TITLE, NULL, NULL)
 
     glfwSetFramebufferSizeCallback(window) { _, _, _ ->
         swapChainOutdated = true

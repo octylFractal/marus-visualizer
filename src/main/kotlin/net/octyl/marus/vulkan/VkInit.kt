@@ -21,12 +21,13 @@ package net.octyl.marus.vulkan
 import mu.KotlinLogging
 import net.octyl.marus.DEBUG
 import net.octyl.marus.Resources
-import net.octyl.marus.data.obj.Importer
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.forEach
 import net.octyl.marus.util.listAllElements
 import net.octyl.marus.util.pushStack
 import net.octyl.marus.util.structs
+import net.octyl.marus.vkColorImage
+import net.octyl.marus.vkColorImageView
 import net.octyl.marus.vkDebugCallback
 import net.octyl.marus.vkDepthImage
 import net.octyl.marus.vkDepthImageView
@@ -74,6 +75,7 @@ var vkSwapChainFormat by Delegates.notNull<Int>()
 lateinit var vkSwapChainExtent: VkExtent2D
 lateinit var queues: Queues
 var vkDepthFormat by Delegates.notNull<Int>()
+var msaaSamples = VK_SAMPLE_COUNT_1_BIT
 
 fun initVulkan() {
     createInstance()
@@ -238,6 +240,7 @@ fun createImageViews() {
     }
 
     createDepthResources()
+    createColorResources()
 }
 
 private fun createDepthResources() {
@@ -246,6 +249,19 @@ private fun createDepthResources() {
         format = vkDepthFormat,
         tiling = VK_IMAGE_TILING_OPTIMAL,
         usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-        properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+        properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        sampleCount = msaaSamples)
     vkDepthImageView = createImageView(vkDepthImage, aspect = VK_IMAGE_ASPECT_DEPTH_BIT)
+}
+
+private fun createColorResources() {
+    vkColorImage = createImage(
+        vkSwapChainExtent.width(), vkSwapChainExtent.height(),
+        format = vkSwapChainFormat,
+        tiling = VK_IMAGE_TILING_OPTIMAL,
+        usageFlags = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT or VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        sampleCount = msaaSamples
+    )
+    vkColorImageView = createImageView(vkColorImage, aspect = VK_IMAGE_ASPECT_COLOR_BIT)
 }

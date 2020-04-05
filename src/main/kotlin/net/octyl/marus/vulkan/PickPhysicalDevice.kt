@@ -25,15 +25,7 @@ import net.octyl.marus.util.listAllElements
 import net.octyl.marus.util.pushStack
 import net.octyl.marus.vkInstance
 import org.lwjgl.vulkan.KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
-import org.lwjgl.vulkan.VK10.VK_PHYSICAL_DEVICE_TYPE_CPU
-import org.lwjgl.vulkan.VK10.VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU
-import org.lwjgl.vulkan.VK10.VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU
-import org.lwjgl.vulkan.VK10.VK_PHYSICAL_DEVICE_TYPE_OTHER
-import org.lwjgl.vulkan.VK10.VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU
-import org.lwjgl.vulkan.VK10.vkEnumerateDeviceExtensionProperties
-import org.lwjgl.vulkan.VK10.vkEnumeratePhysicalDevices
-import org.lwjgl.vulkan.VK10.vkGetPhysicalDeviceFeatures
-import org.lwjgl.vulkan.VK10.vkGetPhysicalDeviceProperties
+import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkExtensionProperties
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkPhysicalDeviceFeatures
@@ -53,17 +45,26 @@ fun pickPhysicalDevice(): VkPhysicalDevice {
         check(physicalDevices.hasRemaining()) {
             "No Vulkan-supporting devices found!"
         }
-        physicalDevices.asSequence { this[it] }
+        val result = physicalDevices.asSequence { this[it] }
             .map { VkPhysicalDevice(it, vkInstance) }
-            .map { device -> device to scoreDevice(device) }
-            .filter { it.second > 0L }
-            .sortedBy { it.second }
-            .map { it.first }
+            .mapNotNull { device -> scoreDevice(device) }
+            .onEach { LOGGER.info { "Considering ${it.name}: score ${it.score}" } }
+            .sortedBy { -it.score }
             .firstOrNull() ?: throw IllegalStateException("No suitable device found!")
+        LOGGER.info {"Using physical device: ${result.name}" }
+        msaaSamples = result.sampleCount
+        result.physicalDevice
     }
 }
 
-private fun scoreDevice(device: VkPhysicalDevice): Long {
+private data class ScoredDevice(
+    val name: String,
+    val physicalDevice: VkPhysicalDevice,
+    val score: Long,
+    val sampleCount: Int
+)
+
+private fun scoreDevice(device: VkPhysicalDevice): ScoredDevice? {
     return closer {
         val stack = pushStack()
         val deviceProperties = VkPhysicalDeviceProperties.callocStack(stack)
@@ -89,23 +90,28 @@ private fun scoreDevice(device: VkPhysicalDevice): Long {
 
         if (!queues.isComplete) {
             notifySkipReason("does not support all queues")
-            return@closer 0
+            return@closer null
         }
 
         if (!checkExtensionSupport(device)) {
             notifySkipReason("does not support all extensions")
-            return@closer 0
+            return@closer null
         }
 
         if (querySwapChainSupport(device)?.takeIf { it.isComplete } == null) {
             notifySkipReason("does not support the swap chain")
-            return@closer 0
+            return@closer null
         }
         if (!deviceFeatures.samplerAnisotropy()) {
             notifySkipReason("does not support sampler anisotropy")
-            return@closer 0
+            return@closer null
         }
-        return@closer score
+        return@closer score.takeUnless { it == 0L }?.let {
+            ScoredDevice(
+                deviceProperties.deviceNameString(),
+                device, score, getMaxUsableSampleCount(deviceProperties)
+            )
+        }
     }
 }
 
@@ -118,5 +124,25 @@ private fun checkExtensionSupport(device: VkPhysicalDevice): Boolean {
 
         extensions.map { it.extensionNameString() }.toSet()
             .containsAll(listOf(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+    }
+}
+
+private val SAMPLE_COUNTS = intArrayOf(
+    VK_SAMPLE_COUNT_64_BIT,
+    VK_SAMPLE_COUNT_32_BIT,
+    VK_SAMPLE_COUNT_16_BIT,
+    VK_SAMPLE_COUNT_8_BIT,
+    VK_SAMPLE_COUNT_4_BIT,
+    VK_SAMPLE_COUNT_2_BIT,
+    VK_SAMPLE_COUNT_1_BIT
+)
+
+private fun getMaxUsableSampleCount(physicalDeviceProperties: VkPhysicalDeviceProperties): Int {
+    val limits = physicalDeviceProperties.limits()
+    val counts = limits.framebufferColorSampleCounts() and
+        limits.framebufferDepthSampleCounts()
+
+    return SAMPLE_COUNTS.first {
+        (counts and it) != 0
     }
 }

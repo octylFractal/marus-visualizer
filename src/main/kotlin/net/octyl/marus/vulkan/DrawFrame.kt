@@ -19,6 +19,7 @@
 package net.octyl.marus.vulkan
 
 import net.octyl.marus.MAX_FRAMES_IN_FLIGHT
+import net.octyl.marus.TITLE
 import net.octyl.marus.data.UniformBufferObject
 import net.octyl.marus.data.copyTo
 import net.octyl.marus.swapChainOutdated
@@ -33,8 +34,10 @@ import net.octyl.marus.vkInflightFences
 import net.octyl.marus.vkRenderFinishedSemaphores
 import net.octyl.marus.vkSwapChain
 import net.octyl.marus.vkUniformBuffers
+import net.octyl.marus.window
 import org.joml.Matrix4f
 import org.joml.Vector3f
+import org.lwjgl.glfw.GLFW
 import org.lwjgl.system.MemoryUtil.memAddress
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR
@@ -122,6 +125,7 @@ fun drawFrame() {
 @OptIn(ExperimentalTime::class)
 private val timer = TimeSource.Monotonic.markNow()
 private val UBO = UniformBufferObject.create()
+
 @OptIn(ExperimentalTime::class)
 private var lastTime = timer.elapsedNow().inSeconds.toFloat()
 private var counter = 0
@@ -131,7 +135,7 @@ fun updateUniformBuffer(image: Int) {
     val time = timer.elapsedNow().inSeconds.toFloat()
     counter++
     if (time - lastTime > 1.0) {
-        println("FPS: ${counter / (time - lastTime)}")
+        GLFW.glfwSetWindowTitle(window, "$TITLE - FPS: ${counter / (time - lastTime)}")
         lastTime = time
         counter = 0
     }
