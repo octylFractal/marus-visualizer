@@ -49,9 +49,13 @@ inline fun Logger.logFailure(action: () -> String, successCodes: Set<Int> = VK_S
 @PublishedApi
 @OptIn(ExperimentalUnsignedTypes::class)
 internal fun failureMessage(action: String, error: Int): String {
-    var hex = error.toString(radix = 16)
+    return "Failed to $action: ${error.to10AndHexString()}"
+}
+
+fun Int.to10AndHexString(): String {
+    var hex = toString(radix = 16)
     if (hex[0] == '-') {
         hex = "-0x${hex.substring(1)}"
     }
-    return "Failed to $action: $error ($hex)"
+    return "$this ($hex)"
 }

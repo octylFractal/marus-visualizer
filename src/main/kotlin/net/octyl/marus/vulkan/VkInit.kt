@@ -92,7 +92,7 @@ fun initVulkan() {
 
     vkRectImage = Resources.getImage("textures/chalet.jpg")
     vkRectImageView = createImageView(vkRectImage, aspect = VK_IMAGE_ASPECT_COLOR_BIT)
-    vkRectSampler = createTextureSampler()
+    vkRectSampler = createTextureSampler(vkRectImage)
 
     createVertexBuffer()
     createIndexBuffer()

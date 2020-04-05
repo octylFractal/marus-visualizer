@@ -7,6 +7,7 @@ import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkBufferImageCopy
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkFormatProperties
+import org.lwjgl.vulkan.VkImageBlit
 import org.lwjgl.vulkan.VkImageCreateInfo
 import org.lwjgl.vulkan.VkImageMemoryBarrier
 import org.lwjgl.vulkan.VkImageViewCreateInfo
@@ -20,7 +21,8 @@ data class ImageHandles(
     val memory: Long,
     val format: Int,
     val width: Int,
-    val height: Int
+    val height: Int,
+    val mipLevels: Int
 ) {
     fun destroy(device: VkDevice) {
         vkDestroyImage(device, image, null)
@@ -28,7 +30,10 @@ data class ImageHandles(
     }
 }
 
-fun createImage(width: Int, height: Int, format: Int, tiling: Int, usageFlags: Int, properties: Int): ImageHandles {
+fun createImage(
+    width: Int, height: Int, format: Int, tiling: Int, usageFlags: Int, properties: Int,
+    mipLevels: Int = 1
+): ImageHandles {
     return closerWithStack { stack ->
         val imageInfo = VkImageCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
@@ -38,7 +43,7 @@ fun createImage(width: Int, height: Int, format: Int, tiling: Int, usageFlags: I
                 it.height(height)
                 it.depth(1)
             }
-            .mipLevels(1)
+            .mipLevels(mipLevels)
             .arrayLayers(1)
             .format(format)
             .tiling(tiling)
@@ -65,7 +70,7 @@ fun createImage(width: Int, height: Int, format: Int, tiling: Int, usageFlags: I
             vkAllocateMemory(vkDevice, allocInfo, null, memory)
         }
         vkBindImageMemory(vkDevice, image[0], memory[0], 0)
-        ImageHandles(image[0], memory[0], format, width, height)
+        ImageHandles(image[0], memory[0], format, width, height, mipLevels)
     }
 }
 
@@ -83,7 +88,7 @@ fun transitionImageLayout(image: ImageHandles, oldLayout: Int, newLayout: Int) {
             .subresourceRange {
                 it.aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
                     .baseMipLevel(0)
-                    .levelCount(1)
+                    .levelCount(image.mipLevels)
                     .baseArrayLayer(0)
                     .layerCount(1)
             }
@@ -143,9 +148,9 @@ fun copyBufferToImage(bufferHandles: BufferHandles, image: ImageHandles) {
 }
 
 fun createImageView(image: ImageHandles, aspect: Int) =
-    createImageView(image.image, image.format, aspect)
+    createImageView(image.image, image.format, aspect, image.mipLevels)
 
-fun createImageView(image: Long, format: Int, aspect: Int): Long {
+fun createImageView(image: Long, format: Int, aspect: Int, mipLevels: Int = 0): Long {
     return closerWithStack { stack ->
         val viewInfo = VkImageViewCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
@@ -155,7 +160,7 @@ fun createImageView(image: Long, format: Int, aspect: Int): Long {
             .subresourceRange {
                 it.aspectMask(aspect)
                     .baseMipLevel(0)
-                    .levelCount(1)
+                    .levelCount(mipLevels)
                     .baseArrayLayer(0)
                     .layerCount(1)
             }
@@ -168,7 +173,7 @@ fun createImageView(image: Long, format: Int, aspect: Int): Long {
     }
 }
 
-fun createTextureSampler(): Long {
+fun createTextureSampler(image: ImageHandles): Long {
     return closerWithStack { stack ->
         val samplerInfo = VkSamplerCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
@@ -182,13 +187,109 @@ fun createTextureSampler(): Long {
             .mipmapMode(VK_SAMPLER_MIPMAP_MODE_LINEAR)
             .mipLodBias(0.0f)
             .minLod(0.0f)
-            .maxLod(0.0f)
+            .maxLod(image.mipLevels.toFloat())
 
         val sampler = stack.mallocLong(1)
         checkedCreate({ "texture sampler" }) {
             vkCreateSampler(vkDevice, samplerInfo, null, sampler)
         }
         sampler[0]
+    }
+}
+
+fun generateMipmaps(image: ImageHandles) {
+    closerWithStack { stack ->
+        val formatProperties = VkFormatProperties.callocStack(stack)
+        vkGetPhysicalDeviceFormatProperties(vkPhysicalDevice, image.format, formatProperties)
+
+        check(formatProperties.optimalTilingFeatures() and VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT != 0) {
+            "Unable to generate mipmaps for texture type ${image.format.to10AndHexString()}"
+        }
+
+        val commandBuffer = beginSingleUseCmdBuffer()
+
+        val barrier = VkImageMemoryBarrier.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
+            .image(image.image)
+            .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+            .subresourceRange {
+                it.aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                    .baseArrayLayer(0)
+                    .layerCount(1)
+                    .levelCount(1)
+            }
+
+        var width = image.width
+        var height = image.height
+
+        for (i in 1 until image.mipLevels) {
+            val scaledWidth = (width / 2).coerceAtLeast(1)
+            val scaledHeight = (height / 2).coerceAtLeast(1)
+            barrier.subresourceRange { it.baseMipLevel(i - 1) }
+                .oldLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+                .newLayout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+                .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+
+            vkCmdPipelineBarrier(commandBuffer,
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+                null, null, stack.structs(VkImageMemoryBarrier::mallocStack, barrier))
+
+            val blit = VkImageBlit.callocStack()
+                .srcOffsets(0) {
+                    it.set(0, 0, 0)
+                }
+                .srcOffsets(1) {
+                    it.set(width, height, 1)
+                }
+                .srcSubresource {
+                    it.aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                        .mipLevel(i - 1)
+                        .baseArrayLayer(0)
+                        .layerCount(1)
+                }
+                .dstOffsets(0) {
+                    it.set(0, 0, 0)
+                }
+                .dstOffsets(1) {
+                    it.set(scaledWidth, scaledHeight, 1)
+                }
+                .dstSubresource {
+                    it.aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                        .mipLevel(i)
+                        .baseArrayLayer(0)
+                        .layerCount(1)
+                }
+            vkCmdBlitImage(commandBuffer,
+                image.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                stack.structs(VkImageBlit::mallocStack, blit),
+                VK_FILTER_LINEAR)
+
+            barrier.oldLayout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+                .newLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+                .srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+
+            vkCmdPipelineBarrier(commandBuffer,
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+                null, null, stack.structs(VkImageMemoryBarrier::mallocStack, barrier))
+
+            width = scaledWidth
+            height = scaledHeight
+        }
+
+        barrier.subresourceRange { it.baseMipLevel(image.mipLevels - 1) }
+            .oldLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+            .newLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+            .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+        vkCmdPipelineBarrier(commandBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+            null, null, stack.structs(VkImageMemoryBarrier::mallocStack, barrier))
+
+        endSingleUseCmdBuffer(commandBuffer)
     }
 }
 

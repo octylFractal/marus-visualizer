@@ -29,12 +29,16 @@ import net.octyl.marus.vulkan.ImageHandles
 import net.octyl.marus.vulkan.copyBufferToImage
 import net.octyl.marus.vulkan.createBuffer
 import net.octyl.marus.vulkan.createImage
+import net.octyl.marus.vulkan.generateMipmaps
 import net.octyl.marus.vulkan.transitionImageLayout
 import org.lwjgl.stb.STBImage.STBI_rgb_alpha
 import org.lwjgl.stb.STBImage.stbi_load_from_memory
 import org.lwjgl.system.MemoryUtil.memAddress
 import org.lwjgl.vulkan.VK10.*
 import java.io.InputStream
+import kotlin.math.floor
+import kotlin.math.log2
+import kotlin.math.max
 
 object Resources {
 
@@ -66,6 +70,8 @@ object Resources {
                 "Failed to load image from $path"
             }
 
+            val mipLevels = floor(log2(max(width[0], height[0]).toDouble())).toInt() + 1
+
             val size = (width[0] * height[0] * 4).toLong()
             val handles = createBuffer(stack,
                 size = size,
@@ -76,12 +82,15 @@ object Resources {
             val image = createImage(width[0], height[0],
                 format = VK_FORMAT_R8G8B8A8_SRGB,
                 tiling = VK_IMAGE_TILING_OPTIMAL,
-                usageFlags = VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT,
-                properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+                usageFlags = VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                    or VK_IMAGE_USAGE_SAMPLED_BIT
+                    or VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                mipLevels = mipLevels)
 
             transitionImageLayout(image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
             copyBufferToImage(handles, image)
-            transitionImageLayout(image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            generateMipmaps(image)
 
             handles.destroy(vkDevice)
 
