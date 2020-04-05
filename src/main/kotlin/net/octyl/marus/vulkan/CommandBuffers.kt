@@ -21,6 +21,7 @@ package net.octyl.marus.vulkan
 import net.octyl.marus.INDICIES
 import net.octyl.marus.util.closerWithStack
 import net.octyl.marus.util.forEach
+import net.octyl.marus.util.structs
 import net.octyl.marus.vkCommandBuffers
 import net.octyl.marus.vkCommandPool
 import net.octyl.marus.vkDescriptorSets
@@ -37,8 +38,11 @@ import org.lwjgl.vulkan.VkClearValue
 import org.lwjgl.vulkan.VkCommandBuffer
 import org.lwjgl.vulkan.VkCommandBufferAllocateInfo
 import org.lwjgl.vulkan.VkCommandBufferBeginInfo
+import org.lwjgl.vulkan.VkOffset2D
+import org.lwjgl.vulkan.VkRect2D
 import org.lwjgl.vulkan.VkRenderPassBeginInfo
 import org.lwjgl.vulkan.VkSubmitInfo
+import org.lwjgl.vulkan.VkViewport
 
 fun createCommandBuffers() {
     closerWithStack { stack ->
@@ -73,6 +77,18 @@ fun createCommandBuffers() {
                 it.extent(vkSwapChainExtent)
             }
             .pClearValues(clearColor)
+        val viewport = VkViewport.callocStack(stack)
+            .x(0.0f)
+            .y(0.0f)
+            .width(vkSwapChainExtent.width().toFloat())
+            .height(vkSwapChainExtent.height().toFloat())
+            .minDepth(0.0f)
+            .maxDepth(1.0f)
+        val viewportPtr = stack.structs(VkViewport::mallocStack, viewport)
+        val scissor = VkRect2D.callocStack(stack)
+            .offset(VkOffset2D.callocStack(stack).set(0, 0))
+            .extent(vkSwapChainExtent)
+        val scissorPtr = stack.structs(VkRect2D::mallocStack, scissor)
         commandBuffers.forEach {
             val commandBuffer = VkCommandBuffer(get(it), vkDevice)
             checkedAction({ "begin command buffer $it" }) {
@@ -82,6 +98,9 @@ fun createCommandBuffers() {
             vkCmdBeginRenderPass(commandBuffer, renderPassInfo, VK_SUBPASS_CONTENTS_INLINE)
 
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline)
+
+            vkCmdSetViewport(commandBuffer, 0, viewportPtr)
+            vkCmdSetScissor(commandBuffer, 0, scissorPtr)
 
             vkCmdBindVertexBuffers(commandBuffer, 0, stack.longs(vkVertexBuffer.buffer), stack.longs(0))
             vkCmdBindIndexBuffer(commandBuffer, vkIndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32)

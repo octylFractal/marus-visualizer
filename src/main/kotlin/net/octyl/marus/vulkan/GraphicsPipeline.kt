@@ -24,6 +24,7 @@ import net.octyl.marus.util.pushStack
 import net.octyl.marus.util.structs
 import net.octyl.marus.vkDescriptorSetLayout
 import net.octyl.marus.vkDevice
+import net.octyl.marus.vkDynamicStates
 import net.octyl.marus.vkPipeline
 import net.octyl.marus.vkPipelineLayout
 import net.octyl.marus.vkRenderPass
@@ -32,10 +33,10 @@ import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkAttachmentDescription
 import org.lwjgl.vulkan.VkAttachmentReference
 import org.lwjgl.vulkan.VkGraphicsPipelineCreateInfo
-import org.lwjgl.vulkan.VkOffset2D
 import org.lwjgl.vulkan.VkPipelineColorBlendAttachmentState
 import org.lwjgl.vulkan.VkPipelineColorBlendStateCreateInfo
 import org.lwjgl.vulkan.VkPipelineDepthStencilStateCreateInfo
+import org.lwjgl.vulkan.VkPipelineDynamicStateCreateInfo
 import org.lwjgl.vulkan.VkPipelineInputAssemblyStateCreateInfo
 import org.lwjgl.vulkan.VkPipelineLayoutCreateInfo
 import org.lwjgl.vulkan.VkPipelineMultisampleStateCreateInfo
@@ -43,12 +44,10 @@ import org.lwjgl.vulkan.VkPipelineRasterizationStateCreateInfo
 import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo
 import org.lwjgl.vulkan.VkPipelineVertexInputStateCreateInfo
 import org.lwjgl.vulkan.VkPipelineViewportStateCreateInfo
-import org.lwjgl.vulkan.VkRect2D
 import org.lwjgl.vulkan.VkRenderPassCreateInfo
 import org.lwjgl.vulkan.VkSubpassDependency
 import org.lwjgl.vulkan.VkSubpassDescription
 import org.lwjgl.vulkan.VkVertexInputBindingDescription
-import org.lwjgl.vulkan.VkViewport
 
 
 fun createRenderPass() {
@@ -143,20 +142,10 @@ fun createGraphicsPipeline() {
             .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
             .topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
             .primitiveRestartEnable(false)
-        val viewport = VkViewport.callocStack(stack)
-            .x(0.0f)
-            .y(0.0f)
-            .width(vkSwapChainExtent.width().toFloat())
-            .height(vkSwapChainExtent.height().toFloat())
-            .minDepth(0.0f)
-            .maxDepth(1.0f)
-        val scissor = VkRect2D.callocStack(stack)
-            .offset(VkOffset2D.callocStack(stack).set(0, 0))
-            .extent(vkSwapChainExtent)
         val viewportState = VkPipelineViewportStateCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO)
-            .pViewports(stack.structs(VkViewport::mallocStack, viewport))
-            .pScissors(stack.structs(VkRect2D::mallocStack, scissor))
+            .pViewports(null)
+            .pScissors(null)
         val rasterizer = VkPipelineRasterizationStateCreateInfo.callocStack(stack)
             .sType(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO)
             .depthClampEnable(false)
@@ -190,6 +179,9 @@ fun createGraphicsPipeline() {
             .depthTestEnable(true)
             .depthWriteEnable(true)
             .depthCompareOp(VK_COMPARE_OP_LESS)
+        val dynamicState = VkPipelineDynamicStateCreateInfo.callocStack(stack)
+            .sType(VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO)
+            .pDynamicStates(vkDynamicStates)
 
         createPipelineLayout()
 
@@ -203,6 +195,7 @@ fun createGraphicsPipeline() {
             .pMultisampleState(multiSampling)
             .pColorBlendState(colorBlending)
             .pDepthStencilState(depthStencil)
+            .pDynamicState(dynamicState)
             .layout(vkPipelineLayout)
             .renderPass(vkRenderPass)
             .subpass(0)

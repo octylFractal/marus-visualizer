@@ -19,8 +19,6 @@
 package net.octyl.marus.vulkan
 
 import mu.KotlinLogging
-import net.octyl.marus.util.VkColorSpace
-import net.octyl.marus.util.VkFormatName
 import net.octyl.marus.util.asSequence
 import net.octyl.marus.util.closer
 import net.octyl.marus.util.listAllElements
@@ -34,8 +32,6 @@ import net.octyl.marus.vkDepthImageView
 import net.octyl.marus.vkDescriptorPool
 import net.octyl.marus.vkDevice
 import net.octyl.marus.vkImageViews
-import net.octyl.marus.vkPipeline
-import net.octyl.marus.vkPipelineLayout
 import net.octyl.marus.vkRenderPass
 import net.octyl.marus.vkSurface
 import net.octyl.marus.vkSwapChain
@@ -74,16 +70,11 @@ data class SwapChainDetails(
     val isComplete = formats.isNotEmpty() && presentModes.isNotEmpty()
     fun pickBestFormat(): VkSurfaceFormatKHR {
         // first meeting conditions, or just first available
-        val selected = formats.firstOrNull {
+        return formats.firstOrNull {
             it.format() == VK_FORMAT_B8G8R8A8_SRGB &&
                 it.colorSpace() == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
         } ?: formats.first()
-        LOGGER.info { "Picked format: ${selected.toReadableString()}" }
-        return selected
     }
-
-    private fun VkSurfaceFormatKHR.toReadableString() =
-        "Format: ${VkFormatName[format()]}, Color Space: ${VkColorSpace[colorSpace()]}"
 
     fun pickBestPresentMode(): Int {
         // easiest mode to work with
@@ -157,7 +148,6 @@ fun recreateSwapChain() {
     createSwapChain()
     createImageViews()
     createRenderPass()
-    createGraphicsPipeline()
     createFramebuffer()
     createUniformBuffers()
     createDescriptorPool()
@@ -185,8 +175,6 @@ fun cleanupSwapChain() {
 
     vkFreeCommandBuffers(vkDevice, vkCommandPool, vkCommandBuffers)
 
-    vkDestroyPipeline(vkDevice, vkPipeline, null)
-    vkDestroyPipelineLayout(vkDevice, vkPipelineLayout, null)
     vkDestroyRenderPass(vkDevice, vkRenderPass, null)
 
     for (image in vkImageViews) {

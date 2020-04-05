@@ -39,15 +39,7 @@ import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.vulkan.EXTDebugUtils.vkDestroyDebugUtilsMessengerEXT
 import org.lwjgl.vulkan.KHRSurface.vkDestroySurfaceKHR
-import org.lwjgl.vulkan.VK10.vkDestroyCommandPool
-import org.lwjgl.vulkan.VK10.vkDestroyDescriptorSetLayout
-import org.lwjgl.vulkan.VK10.vkDestroyDevice
-import org.lwjgl.vulkan.VK10.vkDestroyFence
-import org.lwjgl.vulkan.VK10.vkDestroyImageView
-import org.lwjgl.vulkan.VK10.vkDestroyInstance
-import org.lwjgl.vulkan.VK10.vkDestroySampler
-import org.lwjgl.vulkan.VK10.vkDestroySemaphore
-import org.lwjgl.vulkan.VK10.vkDeviceWaitIdle
+import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.slf4j.LoggerFactory
@@ -95,6 +87,9 @@ lateinit var vkColorImage: ImageHandles
 var vkColorImageView = NULL
 lateinit var vkDepthImage: ImageHandles
 var vkDepthImageView = NULL
+val vkDynamicStates = intArrayOf(
+    VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR
+).toBuffer(BufferUtils::createIntBuffer)
 
 var swapChainOutdated = false
 
@@ -163,6 +158,9 @@ private fun cleanup() {
                 vkDestroyFence(vkDevice, get(it), null)
             }
         }
+
+        vkDestroyPipeline(vkDevice, vkPipeline, null)
+        vkDestroyPipelineLayout(vkDevice, vkPipelineLayout, null)
         cleanupSwapChain()
         vkDestroyCommandPool(vkDevice, vkCommandPool, null)
         vkDestroyDevice(vkDevice, null)
